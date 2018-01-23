@@ -5,6 +5,315 @@
 
 using namespace std;
 
+// Pelitilanteeseen liittyvät tiedot säilyttävä ja niitä manipuloiva luokka
+class Infot {
+    // Suoraan luettavat pysyvät tiedot
+    int playerCount;
+    int myId;
+    vector < int > idt;
+    vector < int > platinatuotot;
+    vector < int > loput;
+    vector < int > alut;
+    // Vuorottain vaihtuvat tiedot
+    vector < int > omistajat;
+    vector < int > vihut;
+    vector < int > omat;
+    int platinum;  // <- "todellinen" / 20, eli moneen yksikköön on varaa    void kierroksen_alku(vector < int > omistajat, vector < int > vihut, vector < int > omat, int platinaa);
+    int vro;
+    // Talteen laskettavat tiedot
+    vector <int> houkuttelevuudet;
+    // Funktioita datan pyörittelyyn
+    vector<int> jrj(vector<int> ehdokkaat, vector<int> ehdokkaiden_arvot);
+    vector<int> omistukset(vector<int> ehdokkaat, int kenen);
+    vector<int> hyvyydet(vector<int> ehdokkaat);
+    bool uhattunako(int id);
+  public:
+    // Konstruktorit
+    Infot();
+    Infot ( int pelaajia, int omaId,
+            vector<int> peliruudut, vector<int> platinatuotot,
+            vector<int> alkupisteet, vector<int> loppupisteet);
+    // API-funktiot
+    void kierroksen_alku(vector < int > omistajat, vector < int > vihut, vector < int > omat, int platinaa);
+    bool eka_kierrosko();
+    vector<int> parhaat_vapaat();
+    vector<int> joukkoja(int kenen); // 0 omia, 1 muiden
+    int varaa() {return(platinum);}
+    int pelaajia() {return(playerCount);}
+    int montako_omaa(int id) {return(omat[id]);}
+    vector<int> suunnat(int id, int moneenko_suuntaan);
+    int maksa(int paljonko);
+    vector<int> naapurit(int id);
+
+};
+
+Infot::Infot() {}
+Infot::Infot(int pelaajia, int id, vector<int> it, vector<int> tuotot, vector<int> lop, vector<int> alk) 
+:  vro(0),
+  playerCount(pelaajia),
+  myId(id),
+  idt(it),
+  platinatuotot(tuotot),
+  loput(lop),
+  alut(alk)
+{
+    idt = jrj(idt, platinatuotot);
+}
+
+void Infot::kierroksen_alku(vector < int > om, vector < int > vih, vector < int > o, int platinaa) {
+    cerr << ++vro << ". vuoro alkaa." << endl;
+    omistajat = om;
+    vihut = vih;
+    omat = o;
+    platinum = platinaa;
+    houkuttelevuudet = hyvyydet(idt);
+}
+
+bool Infot::eka_kierrosko() {
+    return(vro==1);
+}
+vector<int> Infot::parhaat_vapaat() {
+    vector<int> tulos = omistukset(idt, -1);
+    return(jrj(tulos, houkuttelevuudet));
+}
+vector<int> Infot::omistukset(vector<int> ehdokkaat, int kenen) {
+    vector<int> tulos;
+    for (int tt = 0; tt < ehdokkaat.size(); ++tt)
+        if (omistajat[ehdokkaat[tt]] == kenen)
+            tulos.push_back(ehdokkaat[tt]);
+    return(tulos);
+}
+vector<int> Infot::hyvyydet(vector<int> ehd) {
+    vector<int> tulos(ehd.size());
+    for (int tt = 0; tt < ehd.size(); ++tt) {
+        tulos[tt] = 100*platinatuotot[ehd[tt]]; // Indeksöinti olennainen - pitää tarkistaa hyvyydet samalla indeksöinnillä!
+        if (omistajat[ehd[tt]] != myId)
+            tulos[tt] = tulos[tt] + 100;        
+        if (omistajat[ehd[tt]] == myId)
+            tulos[tt] = tulos[tt] / 5;
+        if (uhattunako(ehd[tt]))
+            tulos[tt] = tulos[tt] + 100;
+    }
+    return(tulos);
+}
+int Infot::maksa(int x) {
+    platinum -= x;
+    return(platinum);
+}
+vector<int> Infot::jrj(vector<int> ehdokkaat, vector<int> arvot) {
+    if (ehdokkaat.size() < 2) return(ehdokkaat);
+    // Varmistetaan arvot
+    int mx = 0;
+    vector<int> lisattavat, hannille, tulos;
+    for (int tt =0; tt < ehdokkaat.size(); ++tt) {
+        mx = max(mx, arvot[ehdokkaat[tt]]);
+    }
+    for (int tt =0; tt < ehdokkaat.size(); ++tt) {
+        if (mx == arvot[ehdokkaat[tt]]) {
+            lisattavat.push_back(ehdokkaat[tt]);
+        } else {
+            hannille.push_back(ehdokkaat[tt]);
+        }
+    }
+    hannille = jrj(hannille, arvot);
+    tulos.reserve( lisattavat.size() + hannille.size() ); // preallocate memory
+    tulos.insert( tulos.end(), lisattavat.begin(), lisattavat.end() );
+    tulos.insert( tulos.end(), hannille.begin(), hannille.end() );
+    return(tulos);
+}
+vector<int> Infot::joukkoja(int kenen) { // 0 omia, 1 muiden
+    vector<int> tulos;
+    if (kenen)  {
+        for (int tt = 0; tt < idt.size(); ++tt) 
+            if (vihut[idt[tt]] > 0)
+                tulos.push_back(idt[tt]);
+    } else {
+        for (int tt = 0; tt < idt.size(); ++tt) 
+            if (omat[idt[tt]] > 0) 
+                tulos.push_back(idt[tt]);
+    }
+    return(tulos);
+}
+vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
+    vector<int> tulos;
+    vector<int> ehdokkaat = naapurit(id);
+    ehdokkaat.push_back(id);
+    jrj(ehdokkaat, houkuttelevuudet);
+    for (int tt = 0; tt < moneenko_suuntaan; ++tt)
+        tulos.push_back(ehdokkaat[tt]);
+    return(tulos);
+}
+vector<int> Infot::naapurit(int id) {
+    vector<int> tulos;
+    for (int tt = 0; tt < alut.size(); ++tt) {
+        if (alut[tt] == id)
+            tulos.push_back(loput[tt]);
+        if (loput[tt] == id)
+            tulos.push_back(alut[tt]);
+    }
+    return(tulos);        
+}
+bool Infot::uhattunako(int id) {
+    bool tulos;
+    tulos = false;
+    vector<int> naaps = naapurit(id);
+    for (int tt = 0; tt < naaps.size(); ++tt)
+        if (vihut[naaps[tt]]>0)
+            tulos = true;            
+    return(tulos);
+}
+
+
+// Pelimekaniikkaa pyörittävä luokka
+struct Mekaniikka {
+    Mekaniikka(Infot in);
+    // API-functiot
+    void liikkeet();
+    void ostot();
+  private:
+    Infot info;
+    vector<int> valmistele_liikkeet();
+    void tee_liikkeet(vector<int> liik);
+    vector<int> valmistele_ostot();
+    void tee_ostot(vector<int> ost);
+    void ekat_ostot(vector<int> & ost);
+    void tyhjien_taytto(vector<int> & ost);
+    void rautaa_rajalle(vector<int> & ost);
+} ;
+
+Mekaniikka::Mekaniikka(Infot in) {
+    info = in;
+}
+void Mekaniikka::liikkeet() {
+    tee_liikkeet(valmistele_liikkeet());
+}
+void Mekaniikka::ostot() {
+    tee_ostot(valmistele_ostot());
+}
+vector<int> Mekaniikka::valmistele_liikkeet() {
+    vector<int> tulos;
+    // Yli neljän ryppäitä kannattaa hajottaa
+    // Myös senhetkinen ruutu (eli liikkumattomuus) on otettava huomioon vaihtoehdoissa
+    // Jonoon lisätyn liikkeen johonkin ruutuun tulee heikentää sen houkuttelevuutta
+    vector <int> alueet = info.joukkoja(0); // Omia joukkoja sisältävät ruudut
+    for (int tt = 0; tt < alueet.size(); ++tt) {
+        int moneenko_suuntaan = info.montako_omaa(alueet[tt]) / 4 + 1;
+        vector<int> suun = info.suunnat(alueet[tt], moneenko_suuntaan);
+        for (int ss = 0; ss < moneenko_suuntaan-1; ++ss) {
+            tulos.push_back(4);
+            tulos.push_back(alueet[tt]);
+            tulos.push_back(suun[ss]);
+        }
+        cerr << "Kun " << info.montako_omaa(alueet[tt]) << " roboa, yritetään siirtää " << info.montako_omaa(alueet[tt]) % 4 << endl;
+        tulos.push_back(info.montako_omaa(alueet[tt]) % 4);
+        tulos.push_back(alueet[tt]);
+        tulos.push_back(suun[moneenko_suuntaan-1]);
+    }
+    return(tulos);
+}
+void Mekaniikka::tee_liikkeet(vector<int> liik) {
+        cerr << "Liikkeitä: " << liik.size()/3 << endl;
+    if (liik.size() < 3) {
+        cout << "WAIT";
+    } else {
+        for (int tt = 0; tt < liik.size(); ++tt) 
+            cout << liik[tt] << " ";
+    }
+    cout << endl;
+}
+vector<int> Mekaniikka::valmistele_ostot() {
+    vector<int> tulos;
+    if (info.eka_kierrosko()) {
+        cerr << "Ostoja " << tulos.size() << " ennen ja ";
+        ekat_ostot(tulos);
+        cerr << tulos.size() << " jälkeen." << endl;
+    }
+    if (info.varaa())
+        tyhjien_taytto(tulos);
+    if (info.varaa())
+        rautaa_rajalle(tulos);
+    return(tulos);    
+}
+void Mekaniikka::tyhjien_taytto(vector<int> & ost) {
+    vector<int> tyhj = info.parhaat_vapaat();
+    if (tyhj.size() >0 && info.varaa() > 0) {
+        int apu = 0;
+        while (info.varaa() > 0 && apu < tyhj.size()) {
+            ost.push_back(1);
+            ost.push_back(tyhj[apu]);
+            info.maksa(1);
+            ++apu;
+        }
+    }
+}
+
+void Mekaniikka::rautaa_rajalle(vector<int> & ost) {
+    vector<int> omat;// = omistuksessa(idt, myId);
+    vector<int> raja;
+// Luodaan potentiaalisten kohteiden joukko, joista sijoituspaikat arvotaan
+/*    for (int tt = 0; tt < omat.size(); ++tt) { 
+        if (houkuttelevimmat_vihukohteet(omat[tt]).size() >= 0) // Vallattavia alueita
+            for (int ss = 1; ss <= 5; ++ss)
+                raja.push_back(omat[tt]);
+        if (altis(omat[tt])) // Raja
+            for (int ss = 1; ss <= 1; ++ss)
+                raja.push_back(omat[tt]);
+        if (uhattu(omat[tt])) // Raja, jonka takana vihuja
+            for (int ss = 1; ss <= 20; ++ss)
+                raja.push_back(omat[tt]);
+    }*/
+    if (raja.size() == 0 || info.varaa() == 0)
+        return;
+    int rasi = raja.size();
+    while (raja.size() > info.varaa()) {
+        int mx = raja.size();
+        int r = rand() % mx;
+        raja.erase(raja.begin()+r);
+        rasi = raja.size();
+
+    }
+    unsigned kuhunkin = info.varaa() / raja.size();
+    kuhunkin = (kuhunkin == 0) ? 1 : kuhunkin;
+    int apu = 0;
+    while (info.varaa() > 0 && apu < raja.size()) {
+        ost.push_back(kuhunkin);
+        ost.push_back(raja[apu]);
+        info.maksa(1);
+        ++apu;
+    }
+}
+void Mekaniikka::tee_ostot(vector<int> ost) {
+        cerr << "Ostoja: " << ost.size()/2 << endl;
+    if (ost.size() < 2) {
+        cout << "WAIT";
+    } else {
+        for (int tt = 0; tt < ost.size(); ++tt) 
+            cout << ost[tt] << " ";
+    }
+    cout << endl;
+}
+void Mekaniikka::ekat_ostot(vector<int> & ost) {
+    vector<int> tyhj = info.parhaat_vapaat();
+    if (tyhj.size() >0 && info.varaa() > 1) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
+        int parhaaseen = rand() % 3;
+        parhaaseen = parhaaseen -1 + info.pelaajia();
+        ost.push_back(parhaaseen);
+        ost.push_back(tyhj[0]);
+        info.maksa(parhaaseen);
+        cerr << " Parhaaseen meni " << parhaaseen <<endl;
+        tyhj.erase(tyhj.begin());
+    }
+    if (tyhj.size() >0 && info.varaa() > 0) {
+        int apu = 0;
+        while (info.varaa() > 0 && apu < tyhj.size()) {
+            ost.push_back(1);
+            ost.push_back(tyhj[apu]);
+            info.maksa(1);
+            ++apu;
+        }
+    }
+}
+
 // Pelitilanteen ym. olennaisen sisältävä olio - käytännössä kaikki tapahtuu tässä luokassa
 struct Tiedot {
     Tiedot(
@@ -108,7 +417,6 @@ void Tiedot::valmistele_liikkeet() {
         vector<int> kohteet = houkuttelevimmat_vihukohteet(omia[tt]);
         if (kohteet.size() == 0) { // Ei vallattavia ruutuja
             int sat = satunnaissuunta(omia[tt]);
-            if (altis(omia[tt])) sat = -1; // Ei liikuta rajalta oman alueen suuntaan
             if (sat >= 0) {
                 liikkeet.push_back(omat[omia[tt]]);
                 liikkeet.push_back(omia[tt]);
@@ -372,7 +680,6 @@ int main() {
       vector < int > omistajat(zoneCount);
       vector < int > vihut(zoneCount);
       vector < int > omat(zoneCount);
-      bool eka_kierros = true;
 
       for (int i = 0; i < zoneCount; i++) {
          //        int zoneId; // this zone's ID (between 0 and zoneCount-1)
@@ -389,6 +696,7 @@ int main() {
          cin.ignore();
       }
       Tiedot tiedot(playerCount, myId, idt, platinatuotot, alut, loput);
+      Infot infot(playerCount, myId, idt, platinatuotot, alut, loput);
       
       // game loop
     while (1) {
@@ -413,10 +721,13 @@ int main() {
             vihut[zId] = podsP1 + podsP2 + podsP3 + podsP0 - omat[zId];
         }
         tiedot.kierroksen_alku(omistajat, vihut, omat, platinum/20);
-        if (eka_kierros) eka_kierros = tiedot.ekat();
-        tiedot.valmistele_liikkeet();
-        tiedot.tee_liikkeet();
-        tiedot.valmistele_ostot();
-        tiedot.tee_ostot();
+        infot.kierroksen_alku(omistajat, vihut, omat, platinum/20);
+        Mekaniikka mek(infot);
+//        tiedot.valmistele_liikkeet();
+//        tiedot.tee_liikkeet();
+        mek.liikkeet();
+//       tiedot.valmistele_ostot();
+//        tiedot.tee_ostot();
+        mek.ostot();
     }
 }
