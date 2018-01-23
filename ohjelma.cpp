@@ -3,7 +3,7 @@
 #include <vector> 
 #include <algorithm>
 
-   using namespace std;
+using namespace std;
 
 // Pelitilanteen ym. olennaisen sisältävä olio - käytännössä kaikki tapahtuu tässä luokassa
 struct Tiedot {
@@ -50,6 +50,8 @@ struct Tiedot {
     void rautaa_rajalle();
     bool altis(int id);
     bool uhattu(int id);
+    vector<double> houkuttelevuudet();
+    vector<int> houkutusjrj(vector<int> idt);
 };
 
 Tiedot::Tiedot(int p1, int p2, vector<int> p3, vector<int> p4, vector<int> p5, vector<int> p6) 
@@ -67,42 +69,25 @@ Tiedot::Tiedot(int p1, int p2, vector<int> p3, vector<int> p4, vector<int> p5, v
 void Tiedot::kierroksen_alku(vector < int > om, vector < int > vih, vector < int > o, int platinaa) {
     liikkeet.clear();
     ostot.clear();
-    cerr << ++vro << ". vuoro alkaa. Omistukset";
+    cerr << ++vro << ". vuoro alkaa." << endl;
     omistajat = om;
-    for (int tt = 0; tt < omistajat.size(); ++tt)
-        cerr << " " << omistajat[tt];
-    cerr << endl;
     vihut = vih;
     omat = o;
     platinum = platinaa;
+//    idt = houkutusjrj(idt);
+//    vector<double> koe2 = houkuttelevuudet();   // Kumpikin näistä tuntuu kaatavan ohjelman ajossa.
 }
 
 bool Tiedot::ekat() {
-    // Onko yksisuuntaisia umpikuja?
-    vector<int> umpikujat;
-    for (int tt = 0; tt < idt.size(); ++tt) {
-        bool umpikuja = true;
-        for (int ss = 0; ss < loput.size(); ++ss)
-            if (loput[ss] == idt[tt])
-                umpikuja = false;
-        if (umpikuja && platinatuotot[idt[tt]]) 
-            umpikujat.push_back(idt[tt]);
-    }
-    int apu = 0;
-    while (apu < umpikujat.size() && platinum > 0) {
-        ostot.push_back(1);
-        ostot.push_back(umpikujat[apu]);
-        ++apu;
-        --platinum;
-    }
     // Sijoitetaan tuottavimpiin lopuilla varoilla
     vector<int> tyhj = omistuksessa(idt, -1);
     if (tyhj.size() >0 && platinum > 1) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
         int parhaaseen = rand() % 3;
-        ++parhaaseen;
+        parhaaseen = parhaaseen -1 + playerCount;
         ostot.push_back(parhaaseen);
         ostot.push_back(tyhj[0]);
         platinum -= parhaaseen;
+        cerr << " Parhaaseen meni " << parhaaseen <<endl;
         tyhj.erase(tyhj.begin());
     }
     if (tyhj.size() >0 && platinum > 0) {
@@ -123,17 +108,18 @@ void Tiedot::valmistele_liikkeet() {
         vector<int> kohteet = houkuttelevimmat_vihukohteet(omia[tt]);
         if (kohteet.size() == 0) { // Ei vallattavia ruutuja
             int sat = satunnaissuunta(omia[tt]);
-            if (naapurit(sat).size() == 0) sat = -1; // Ei mennä umpikujiin.
             if (altis(omia[tt])) sat = -1; // Ei liikuta rajalta oman alueen suuntaan
             if (sat >= 0) {
                 liikkeet.push_back(omat[omia[tt]]);
                 liikkeet.push_back(omia[tt]);
                 liikkeet.push_back(sat);
+//                cerr << omat[omia[tt]] << " " << omia[tt] << " -> " << sat << " satunnaisliike" << endl;
             }
         } else { // Ainakin 1 vallattava ruutu
             liikkeet.push_back(omat[omia[tt]]);
             liikkeet.push_back(omia[tt]);
             liikkeet.push_back(kohteet[0]);
+//            cerr << omat[omia[tt]] << " " << omia[tt] << " -> " << kohteet[0] << " valtaus" << endl;
         }
     }
 }
@@ -150,14 +136,11 @@ void Tiedot::tee_liikkeet() {
 }
 
 void Tiedot::valmistele_ostot() {
-        cerr << "Valmistellaan ostot" << endl;
 // Täytetään tyhjiä
     if (platinum)
         tyhjien_taytto();
-    cerr << "Tyhjät täytetty" << endl;
     if (platinum)
         rautaa_rajalle();
-    cerr << "Raudat rajalla" << endl;
 }
 
 void Tiedot::tyhjien_taytto() {
@@ -175,20 +158,18 @@ void Tiedot::tyhjien_taytto() {
 
 void Tiedot::rautaa_rajalle(){
     vector<int> omat = omistuksessa(idt, myId);
-    cerr << "Omia " << omat.size() << endl;
     vector<int> raja;
     for (int tt = 0; tt < omat.size(); ++tt) { 
         if (houkuttelevimmat_vihukohteet(omat[tt]).size() >= 0) // Vallattavia alueita
             for (int ss = 1; ss <= 5; ++ss)
                 raja.push_back(omat[tt]);
-        if (altis(omat[tt])) // Mahdollisesti yksisuuntainen raja
+        if (altis(omat[tt])) // Raja
             for (int ss = 1; ss <= 1; ++ss)
                 raja.push_back(omat[tt]);
         if (uhattu(omat[tt])) // Raja, jonka takana vihuja
             for (int ss = 1; ss <= 20; ++ss)
                 raja.push_back(omat[tt]);
     }
-    cerr << " Rajaa " << raja.size() << endl;
     if (raja.size() == 0 || platinum == 0)
         return;
     int rasi = raja.size();
@@ -199,12 +180,8 @@ void Tiedot::rautaa_rajalle(){
         rasi = raja.size();
 
     }
-    cerr << "Poistojen jälkeen rajaa " << raja.size()<< endl;
-    for (int ss =0; ss < raja.size(); ++ss)
-        cerr << raja[ss] << " ";
     unsigned kuhunkin = platinum / raja.size();
     kuhunkin = (kuhunkin == 0) ? 1 : kuhunkin;
-    cerr << endl << "Kubunkin " << kuhunkin << endl;
     int apu = 0;
     while (platinum > 0 && apu < raja.size()) {
         ostot.push_back(kuhunkin);
@@ -212,7 +189,6 @@ void Tiedot::rautaa_rajalle(){
         platinum -= 1;
         ++apu;
     }
-    cerr << "Rajaa täytetty" << endl;
 }
 
 void Tiedot::tee_ostot() {
@@ -230,7 +206,6 @@ void Tiedot::tee_ostot() {
 vector<int> Tiedot::omistuksessa(vector<int> idt, int kenen) {
     vector<int> tulos;
     for (int it = 0; it < idt.size(); ++it) {
-//        cerr << " it " << it << " alue " << idt[it] /*<< " omistaja " << omistajat[idt[it]];*/ << " kenen " << kenen << endl;
         if (omistajat[idt[it]] == kenen) tulos.push_back(idt[it]);
     }
     return(tulos);
@@ -258,11 +233,44 @@ vector<int> Tiedot::tuottojrj(vector<int> vapaat) {
     return(AB);
 }
 
+vector<int> Tiedot::houkutusjrj(vector<int> vapaat) {
+    cerr << " 0 ";
+    if (vapaat.size() < 2) return(vapaat);
+    cerr << " 1 ";
+    vector<double> houkutus = houkuttelevuudet();
+    for (int tt = 0; tt < vapaat.size(); ++tt) {
+        int ss = rand() % 60;
+        houkutus[tt] = ss / 10.0;
+    }
+    double mx = 0.0;
+    cerr << " 2 ";
+    vector<int> lisattavat, hannille, AB;
+    for (int tt = 0; tt < vapaat.size(); ++tt) {
+        cerr << " 3 ";
+        mx = max(mx, houkutus[vapaat[tt]]);
+    }
+    for (int tt =0; tt < vapaat.size(); ++tt) {
+        if (mx == houkutus[vapaat[tt]]) {
+            lisattavat.push_back(vapaat[tt]);
+        } else {
+            hannille.push_back(vapaat[tt]);
+        }
+    }
+    hannille = houkutusjrj(hannille);
+    AB.reserve( lisattavat.size() + hannille.size() ); // preallocate memory
+    AB.insert( AB.end(), lisattavat.begin(), lisattavat.end() );
+    AB.insert( AB.end(), hannille.begin(), hannille.end() );
+    return(AB);
+}
+
+// Mihin alueelta pääsee?
 vector<int> Tiedot::naapurit(int id) {
     vector<int> tulos;
     for (int tt = 0; tt < alut.size(); ++tt) {
         if (alut[tt] == id)
             tulos.push_back(loput[tt]);
+        if (loput[tt] == id)
+            tulos.push_back(alut[tt]);
     }
     return(tulos);    
 }
@@ -270,7 +278,7 @@ vector<int> Tiedot::naapurit(int id) {
 int Tiedot::satunnaissuunta(int id) {
     vector<int> na = naapurit(id);
     if (na.size() == 0) return(-1);
-    int mx = na.size() + 1;
+    int mx = na.size();
     int r = rand() % mx;
     int tulos = na[r];
     return(tulos);
@@ -278,7 +286,6 @@ int Tiedot::satunnaissuunta(int id) {
 
 vector<int> Tiedot::omia_joukkoja(vector<int> idt) {
     vector<int> tulos;
-//    cerr << "Etsitään omat joukot" << endl;
     for (int tt = 0; tt < idt.size(); ++tt) 
         if (omat[idt[tt]]>0)
             tulos.push_back(idt[tt]);
@@ -291,32 +298,58 @@ vector<int> Tiedot::omia_joukkoja() {
 
 vector<int> Tiedot::houkuttelevimmat_vihukohteet(int id) {
     vector<int> kokelaat = naapurit(id);
-//    cerr << endl << "naapureita " << kokelaat.size() << ", omistajansa ";
     vector<int> kokelaat2;
     for (int tt = 0; tt < kokelaat.size(); ++tt) {
-//        cerr << omistajat[kokelaat[tt]]<< " ";
         if (omistajat[kokelaat[tt]] != myId)
             kokelaat2.push_back(kokelaat[tt]);
     }
-//    cerr << endl << "Vihunaapureita " << kokelaat2.size() << endl;
     kokelaat = tuottojrj(kokelaat2);
-//    cerr << "Järjesteltynä " << kokelaat2.size() << endl;
     return(kokelaat);
 }
 
 bool Tiedot::altis(int id) {
     bool tulos = false;
-    for (int tt = 0; tt < loput.size(); ++tt) 
-        if (loput[tt] == id && vihut[alut[tt]] != myId && omistajat[alut[tt]] != -1) 
+    vector<int> naaps = naapurit(id);
+    for (int tt = 0; tt < naaps.size(); ++tt) 
+        if (omistajat[naaps[tt]] != myId) 
             tulos = true;
     return(tulos);
 }
 
 bool Tiedot::uhattu(int id) {
     bool tulos = false;
-    for (int tt = 0; tt < loput.size(); ++tt) 
-        if (loput[tt] == id && vihut[alut[tt]] > 0)
+    vector<int> naaps = naapurit(id);
+    for (int tt = 0; tt < naaps.size(); ++tt) 
+        if (vihut[naaps[tt]] > 0)
             tulos = true;
+    return(tulos);
+}
+
+// Kuinka haluttavia eri ruudut ovat 
+vector<double> Tiedot::houkuttelevuudet() {
+    int etaisyys = 2; // Kuinka kaukaa muiden ruutujen vaikutus kantaa?
+    double kerroin = 0.2; // Kuinka iso osuus naapureiden haluttavuudesta siirtyy eteenpäin?
+    vector<double> tulos(idt.size());
+    for (int tt = 0; tt < tulos.size(); ++tt) {
+        double arvo;
+        if (omistajat[tt] != myId)
+            arvo += 1.0;
+        arvo += platinatuotot[tt];
+        if (omistajat[tt] = myId)
+            arvo = arvo * 0.2;
+    }
+    for (int d = 0; d < etaisyys; ++d) {
+        vector<double> apu(idt.size());
+            for (int ss = 0; ss < tulos.size(); ++ss) {
+                vector<int> naa = naapurit(ss);
+                int valitulos = 0;
+                for (int uu = 0; uu < naa.size(); ++uu) {
+                    valitulos = valitulos + kerroin * tulos[naa[ss]];
+                }
+                apu[ss] = valitulos;
+            }
+        tulos = apu;
+    }
     return(tulos);
 }
 
@@ -328,7 +361,6 @@ int main() {
       int zoneCount; // the amount of zones on the map
       int linkCount; // the amount of links between all zones
       cin >> playerCount >> myId >> zoneCount >> linkCount;
-      cerr << myId << " my id" << endl;
       cin.ignore();
       
       
@@ -357,23 +389,13 @@ int main() {
          cin.ignore();
       }
       Tiedot tiedot(playerCount, myId, idt, platinatuotot, alut, loput);
-      vector<int> alut2(alut);
-      sort(alut2.begin(), alut2.end());
-      for (int tt =0; tt < alut2.size(); tt++)
-        cerr << " " << alut2[tt];
-      cerr << endl << "Loput: ";
-      vector<int> loput2(loput);
-      sort(loput2.begin(), loput2.end());
-      for (int tt =0; tt < loput2.size(); tt++)
-        cerr << " " << loput2[tt];
-      cerr << endl;
-
+      
       // game loop
-      while (1) {
-         int platinum; // my available Platinum
-         cin >> platinum;
-         cin.ignore();
-         for (int i = 0; i < zoneCount; i++) {
+    while (1) {
+        int platinum; // my available Platinum
+        cin >> platinum;
+        cin.ignore();
+        for (int i = 0; i < zoneCount; i++) {
             int zId; // this zone's ID
             int ownerId; // the player who owns this zone (-1 otherwise)
             int podsP0; // player 0's PODs on this zone
@@ -389,14 +411,9 @@ int main() {
                     omat[zId] = (myId == 2) ? podsP2 : podsP3;
                 }
             vihut[zId] = podsP1 + podsP2 + podsP3 + podsP0 - omat[zId];
-         }
-         tiedot.kierroksen_alku(omistajat, vihut, omat, platinum/20);
-         if (eka_kierros) eka_kierros = tiedot.ekat();
-
-         // Write an action using cout. DON'T FORGET THE "<< endl"
-         // To debug: cerr << "Debug messages..." << endl;
-
-         // first line for movement commands, second line for POD purchase (see the protocol in the statement for details)
+        }
+        tiedot.kierroksen_alku(omistajat, vihut, omat, platinum/20);
+        if (eka_kierros) eka_kierros = tiedot.ekat();
         tiedot.valmistele_liikkeet();
         tiedot.tee_liikkeet();
         tiedot.valmistele_ostot();
