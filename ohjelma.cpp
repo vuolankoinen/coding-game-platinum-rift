@@ -25,7 +25,7 @@ class Infot {
     // Funktioita datan pyörittelyyn
     vector<int> jrj(vector<int> ehdokkaat, vector<int> ehdokkaiden_arvot);
     vector<int> omistukset(vector<int> ehdokkaat, int kenen);
-    vector<int> hyvyydet(vector<int> ehdokkaat);
+    vector<int> laske_houkuttelevuudet(vector<int> ehdokkaat);
     bool uhattunako(int id);
     bool altisko(int id);
   public:
@@ -37,7 +37,7 @@ class Infot {
     // API-funktiot
     void kierroksen_alku(vector < int > omistajat, vector < int > vihut, vector < int > omat, int platinaa);
     bool eka_kierrosko();
-    vector<int> parhaat_vapaat(int kenen);
+    vector<int> parhaat_alueet(int kenen);
     vector<int> joukkoja(int kenen); // 0 omia, 1 muiden
     int varaa() {return(platinum);}
     int pelaajia() {return(playerCount);}
@@ -68,18 +68,13 @@ void Infot::kierroksen_alku(vector < int > om, vector < int > vih, vector < int 
     vihut = vih;
     omat = o;
     platinum = platinaa;
-    houkuttelevuudet = hyvyydet(idt);
-    for (int tt = 0; tt < 5; ++tt) {
-        for (int ss = 0; ss < 20 && ss + 5*tt < houkuttelevuudet.size(); ++ss)
-            cerr << houkuttelevuudet[ss + 5*tt] << " ";
-    cerr << endl;
-    }
+    houkuttelevuudet = laske_houkuttelevuudet(idt);
 }
 
 bool Infot::eka_kierrosko() {
     return(vro==1);
 }
-vector<int> Infot::parhaat_vapaat(int kenen) {
+vector<int> Infot::parhaat_alueet(int kenen) {
     if (kenen == 0)
         kenen = myId;
     vector<int> tulos = omistukset(idt, kenen);
@@ -92,19 +87,33 @@ vector<int> Infot::omistukset(vector<int> ehdokkaat, int kenen) {
             tulos.push_back(ehdokkaat[tt]);
     return(tulos);
 }
-vector<int> Infot::hyvyydet(vector<int> ehd) {
+vector<int> Infot::laske_houkuttelevuudet(vector<int> ehd) {
     vector<int> tulos(platinatuotot.size());
     for (int tt = 0; tt < ehd.size(); ++tt) {
-        tulos[ehd[tt]] = 100*platinatuotot[ehd[tt]]; // Indeksöinti olennainen - pitää tarkistaa hyvyydet samalla indeksöinnillä!
+        tulos[ehd[tt]] = 100*platinatuotot[ehd[tt]]; // Indeksöinti olennainen - pitää tarkistaa laske_houkuttelevuudet samalla indeksöinnillä!
         if (omistajat[ehd[tt]] != myId)
-            tulos[ehd[tt]] = tulos[ehd[tt]] + 300;
+            tulos[ehd[tt]] = tulos[ehd[tt]] * 2 + 300;
         if (omistajat[ehd[tt]] == myId) {
-            tulos[ehd[tt]] = tulos[ehd[tt]] / 10;
+            tulos[ehd[tt]] = tulos[ehd[tt]] / 20;
             if (uhattunako(ehd[tt]))
-                tulos[ehd[tt]] = tulos[ehd[tt]] * 15 + 300;
-            if (!altisko(ehd[tt]))
-                tulos[ehd[tt]] = tulos[ehd[tt]] * 5 + 50;
+                tulos[ehd[tt]] = tulos[ehd[tt]] * 25 + 150;
+            if (altisko(ehd[tt]))
+                tulos[ehd[tt]] = tulos[ehd[tt]] * 10 + 50;
         }
+    }
+    // Alueeseen yhteydessä olevien alueiden vaikutus
+    int etaisyys = 2; // Kuinka kaukaa
+    int osuus = 20; // Kuinka monta prosenttia naapureiden arvosta siirtyy eteenpäin.
+    vector<int> lisat(idt.size());
+    for (int d = 0; d < etaisyys; ++d) {
+        for (int tt = 0; tt < idt.size(); ++tt) {
+            vector<int> naap = naapurit(idt[tt]);
+            for (int nn = 0; nn < naap.size(); ++nn) {
+                lisat[idt[tt]] += tulos[naap[nn]] * osuus;
+            }
+        }
+        for (int ss = 0; ss < tulos.size(); ++ss)
+            tulos[ss] += lisat[ss] /100;
     }
     return(tulos);
 }
@@ -149,18 +158,14 @@ vector<int> Infot::joukkoja(int kenen) { // 0 omia, 1 muiden
 vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
     vector<int> tulos;
     vector<int> ehdokkaat = naapurit(id);
-    ehdokkaat.push_back(id);
-    reverse(ehdokkaat.begin(), ehdokkaat.end());
-/*    cerr << endl;
-    for (int tt = 0; tt < ehdokkaat.size(); ++tt)
-        cerr << houkutus(ehdokkaat[tt]) << " ";
-    cerr << " <- houkuttelevuudet ennen ja jälkeen järjestelyn ->" << endl;
-*/    ehdokkaat = jrj(ehdokkaat, houkuttelevuudet);
-/*    for (int tt = 0; tt < ehdokkaat.size(); ++tt)
-        cerr << houkutus(ehdokkaat[tt]) << " ";
-    cerr << endl;
-*/    for (int tt = 0; tt < moneenko_suuntaan; ++tt)
-        tulos.push_back(ehdokkaat[tt]);
+    ehdokkaat.push_back(id); // Myös tämänhetkinen ruutu (eli liikkumattomuus) on otettava huomioon vaihtoehdoissa.
+    reverse(ehdokkaat.begin(), ehdokkaat.end()); // Suositaan paikallaan pysymistä ärsyttävyyden minimoimiseksi.
+    ehdokkaat = jrj(ehdokkaat, houkuttelevuudet);
+    for (int tt = 0; tt < moneenko_suuntaan; ++tt)
+    {
+        tulos.push_back(ehdokkaat[tt]);        
+        houkuttelevuudet[ehdokkaat[tt]] /= 2; // Jonoon lisätyn liikkeen johonkin ruutuun tulee heikentää sen houkuttelevuutta.
+    }
     return(tulos);
 }
 vector<int> Infot::naapurit(int id) {
@@ -227,20 +232,18 @@ void Mekaniikka::ostot() {
 }
 vector<int> Mekaniikka::valmistele_liikkeet() {
     vector<int> tulos;
-    // Yli neljän ryppäitä kannattaa hajottaa
-    // Myös senhetkinen ruutu (eli liikkumattomuus) on otettava huomioon vaihtoehdoissa
-    // Jonoon lisätyn liikkeen johonkin ruutuun tulee heikentää sen houkuttelevuutta
     vector <int> alueet = info.joukkoja(0); // Omia joukkoja sisältävät ruudut
     for (int tt = 0; tt < alueet.size(); ++tt) {
+        // Yli neljän ryppäitä kannattaa hajottaa
         int moneenko_suuntaan = info.montako_omaa(alueet[tt]) / 4 + 1;
+
         vector<int> suun = info.suunnat(alueet[tt], moneenko_suuntaan);
         for (int ss = 0; ss < moneenko_suuntaan-1; ++ss) 
             if (suun[ss] != alueet[tt]) {
                 tulos.push_back(4);
                 tulos.push_back(alueet[tt]);
                 tulos.push_back(suun[ss]);
-        }// else {cerr << "Pysytään paikallaan." << endl;}
-//        cerr << "Kun " << info.montako_omaa(alueet[tt]) << " roboa, yritetään siirtää " << info.montako_omaa(alueet[tt]) % 4 << endl;
+        }
         if (suun[moneenko_suuntaan-1] != alueet[tt]) {
             int jaaneet = info.montako_omaa(alueet[tt]) % 4;
             if (jaaneet) {
@@ -248,7 +251,7 @@ vector<int> Mekaniikka::valmistele_liikkeet() {
                 tulos.push_back(alueet[tt]);
                 tulos.push_back(suun[moneenko_suuntaan-1]);
             }
-        }// else {cerr << "Pysytään paikallaan" << endl;}
+        }
     }
     return(tulos);
 }
@@ -274,7 +277,7 @@ vector<int> Mekaniikka::valmistele_ostot() {
     return(tulos);
 }
 void Mekaniikka::tyhjien_taytto(vector<int> & ost) {
-    vector<int> tyhj = info.parhaat_vapaat(-1);
+    vector<int> tyhj = info.parhaat_alueet(-1);
     if (tyhj.size() >0 && info.varaa() > 0) {
         int apu = 0;
         while (info.varaa() > 0 && apu < tyhj.size()) {
@@ -287,7 +290,7 @@ void Mekaniikka::tyhjien_taytto(vector<int> & ost) {
 }
 
 void Mekaniikka::rautaa_rajalle(vector<int> & ost) {
-    vector<int> raja = info.parhaat_vapaat(0);
+    vector<int> raja = info.parhaat_alueet(0);
     if (raja.size()==0) return;
     int kynnys;
     for (int tt = 0; tt < raja.size(); ++tt) 
@@ -318,7 +321,7 @@ void Mekaniikka::tee_ostot(vector<int> ost) {
     cout << endl;
 }
 void Mekaniikka::ekat_ostot(vector<int> & ost) {
-    vector<int> tyhj = info.parhaat_vapaat(-1);
+    vector<int> tyhj = info.parhaat_alueet(-1);
     int tt = 0;
     int r = 1 + rand() % 4;
     while (tt < tyhj.size() && tt < r && info.varaa() > 0) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
@@ -327,7 +330,6 @@ void Mekaniikka::ekat_ostot(vector<int> & ost) {
         ost.push_back( (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa() );
         ost.push_back(tyhj[tt]);
         info.maksa((parhaaseen <= info.varaa()) ? parhaaseen:info.varaa());
-        cerr << " Parhaaseen meni " << parhaaseen <<endl;
         ++tt;
     }
     while (tt < tyhj.size() && info.varaa() > 0) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
@@ -360,14 +362,10 @@ int main() {
       for (int i = 0; i < zoneCount; i++) {
          //        int zoneId; // this zone's ID (between 0 and zoneCount-1)
          //        int platinumSource; // the amount of Platinum this zone can provide per game turn
-         //        cin >> zoneId >> platinumSource; cin.ignore(); // alkuperäinen
          cin >> idt[i] >> platinatuotot[i];
          cin.ignore();
       }
       for (int i = 0; i < linkCount; i++) {
-         //        int zone1;
-         //        int zone2;
-         //        cin >> zone1 >> zone2; cin.ignore();
          cin >> alut[i] >> loput[i];
          cin.ignore();
       }
