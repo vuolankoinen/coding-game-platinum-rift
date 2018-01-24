@@ -5,6 +5,27 @@
 
 using namespace std;
 
+/* 
+Kehitysajatuksia:
+    - peliasennot
+        - esim. ADT niitä säätelemään
+    - tuottavien ruutujen omistussuhteiden (ja siten tulojen) tarkkaileminen
+    - mantereiden tarkkaileminen
+        - manner-luokka?
+        - vallattujen mantereiden tiputtaminen pohdinnoista
+        - sillanpään varmistaminen voittoon tarvittavilla mantereilla
+            - viimeiseen tyhjään laitetaan joukkoja
+            - neljän poppoolla voi ajella tuottaviin ruutuihin
+            - pienemmällä poppoolla väistellään pitkin maaseutua
+        - kullekin mantereelle oma asento?
+            - normaali
+            - puhdistetaan
+            - pidetään sillanpäätä auki
+            - vallataan
+*/
+
+/***********  INFOT-luokka ***********/
+/*************************************/
 // Pelitilanteeseen liittyvät tiedot säilyttävä ja niitä manipuloiva luokka
 class Infot {
     // Suoraan luettavat pysyvät tiedot
@@ -37,13 +58,13 @@ class Infot {
     // API-funktiot
     void kierroksen_alku(vector < int > omistajat, vector < int > vihut, vector < int > omat, int platinaa);
     bool eka_kierrosko();
-    vector<int> parhaat_alueet(int kenen);
+    vector<int> parhaat_alueet(int kenen); // -1: tuottavat alueet, 0: alueet, joihin voi sijoittaa joukkoja
     vector<int> joukkoja(int kenen); // 0 omia, 1 muiden
     int varaa() {return(platinum);}
     int pelaajia() {return(playerCount);}
     int montako_omaa(int id) {return(omat[id]);}
     vector<int> suunnat(int id, int moneenko_suuntaan);
-    int maksa(int paljonko);
+    int maksa(int paljonko, int mihin);
     vector<int> naapurit(int id);
     int satunnaissuunta(int id);
     int houkutus(int id) {return(houkuttelevuudet[id]);}
@@ -78,6 +99,17 @@ vector<int> Infot::parhaat_alueet(int kenen) {
     if (kenen == 0)
         kenen = myId;
     vector<int> tulos = omistukset(idt, kenen);
+    if (kenen == myId) { // Lisätään omiin vielä tyhjät
+        vector<int> apu = omistukset(idt, -1);
+        tulos.insert(tulos.end(), apu.begin(), apu.end());
+    }
+    if (kenen == -1) { // Poistetaan tyhjistä tuottamattomat
+        vector<int> apu;
+        for (int tt = 0; tt < tulos.size(); ++tt)
+            if (platinatuotot[tulos[tt]>1])
+                apu.push_back(tulos[tt]);
+        tulos = apu;
+    }
     return(jrj(tulos, houkuttelevuudet));
 }
 vector<int> Infot::omistukset(vector<int> ehdokkaat, int kenen) {
@@ -117,13 +149,13 @@ vector<int> Infot::laske_houkuttelevuudet(vector<int> ehd) {
     }
     return(tulos);
 }
-int Infot::maksa(int x) {
+int Infot::maksa(int x, int id) {
     platinum -= x;
+    houkuttelevuudet[id] = 0;
     return(platinum);
 }
 vector<int> Infot::jrj(vector<int> ehdokkaat, vector<int> arvot) {
     if (ehdokkaat.size() < 2) return(ehdokkaat);
-    // Varmistetaan arvot
     int mx = 0;
     vector<int> lisattavat, hannille, tulos;
     for (int tt =0; tt < ehdokkaat.size(); ++tt) {
@@ -204,6 +236,8 @@ bool Infot::altisko(int id) {
     return(tulos);
 }
 
+/***********  MEKANIIKKA-luokka ***********/
+/******************************************/
 // Pelimekaniikkaa pyörittävä luokka
 struct Mekaniikka {
     Mekaniikka(Infot in);
@@ -283,12 +317,11 @@ void Mekaniikka::tyhjien_taytto(vector<int> & ost) {
         while (info.varaa() > 0 && apu < tyhj.size()) {
             ost.push_back(1);
             ost.push_back(tyhj[apu]);
-            info.maksa(1);
+            info.maksa(1, tyhj[apu]);
             ++apu;
         }
     }
 }
-
 void Mekaniikka::rautaa_rajalle(vector<int> & ost) {
     vector<int> raja = info.parhaat_alueet(0);
     if (raja.size()==0) return;
@@ -296,17 +329,15 @@ void Mekaniikka::rautaa_rajalle(vector<int> & ost) {
     for (int tt = 0; tt < raja.size(); ++tt) 
         kynnys += info.houkutus(raja[tt]);
     kynnys = kynnys / 2 / raja.size();
-    cerr << "Kynnysarvo: " << kynnys << endl << "Rajaa ennen karsimista: " << raja.size() << endl;
     while (raja.size() > 2 && info.houkutus(raja[raja.size()-1]) < kynnys)
         raja.pop_back();
-    cerr  << "Rajaa karsimisen jälkeen: " << raja.size() << endl;
     unsigned kuhunkin = info.varaa() / raja.size();
     kuhunkin = (kuhunkin == 0) ? 1 : kuhunkin;
     int apu = 0;
     while (info.varaa() > 0 && apu < raja.size()) {
         ost.push_back(kuhunkin);
         ost.push_back(raja[apu]);
-        info.maksa(1);
+        info.maksa(1, raja[apu]);
         ++apu;
     }
 }
@@ -327,19 +358,22 @@ void Mekaniikka::ekat_ostot(vector<int> & ost) {
     while (tt < tyhj.size() && tt < r && info.varaa() > 0) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
         int parhaaseen = rand() % 3;
         parhaaseen = parhaaseen -1 + info.pelaajia();
+        parhaaseen = min(4, parhaaseen);
         ost.push_back( (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa() );
         ost.push_back(tyhj[tt]);
-        info.maksa((parhaaseen <= info.varaa()) ? parhaaseen:info.varaa());
+        info.maksa((parhaaseen <= info.varaa()) ? parhaaseen:info.varaa(), tyhj[tt]);
         ++tt;
     }
-    while (tt < tyhj.size() && info.varaa() > 0) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
+    while (tt < tyhj.size() && info.varaa() > 0) {
         ost.push_back(1);
         ost.push_back(tyhj[tt]);
-        info.maksa(1);
+        info.maksa(1, tyhj[tt]);
         tt = tt + 1 + rand() % 3;
     }
 }
 
+/***********  pääsilmukka ***********/
+/************************************/
 
 int main() {
       int playerCount; // the amount of players (2 to 4)
