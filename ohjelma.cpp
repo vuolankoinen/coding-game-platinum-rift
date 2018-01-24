@@ -1,6 +1,7 @@
 #include <iostream> 
 #include <string> 
 #include <vector> 
+#include <set> 
 #include <algorithm>
 
 using namespace std;
@@ -22,7 +23,58 @@ Kehitysajatuksia:
             - puhdistetaan
             - pidetään sillanpäätä auki
             - vallataan
+    - huokuttelevuuksien laskemiseen naapureiden vaikutukset kaikille etäisyyksille (mantereittain)
 */
+
+/***********  MANNER-luokka ***********/
+/*************************************/
+// Toisiinsa yhteydessä olevien ruutujen joukko
+struct Manner {
+    // Pseudo-konstruktori, palauttaa mantereen alueet
+    set<int> alusta(int id, vector<int> alut, vector<int> loput);
+    set<int> idt;
+    vector<int> alut;
+    vector<int> loput;
+    set<int> alueet() const {return(idt);}
+
+};
+set<int> Manner::alusta(int id, vector<int> kaikki_alut, vector<int> kaikki_loput) {
+    set<int> tulos, uudet;
+    tulos.insert(id);
+    uudet.insert(id);
+    while (uudet.size()>0) {
+        set<int> apu;
+        for (std::set<int>::iterator it=uudet.begin(); it!=uudet.end(); ++it) {
+            for (int ss = 0; ss < kaikki_alut.size(); ++ss) {
+                if (*it == kaikki_alut[ss] && tulos.count(kaikki_loput[ss])==0) {
+                    tulos.insert(kaikki_loput[ss]);
+                    apu.insert(kaikki_loput[ss]);
+                }
+                if (*it == kaikki_loput[ss] && tulos.count(kaikki_alut[ss])==0) {
+                    tulos.insert(kaikki_alut[ss]);
+                    apu.insert(kaikki_alut[ss]);
+                }
+            }
+        }
+        uudet = apu;
+    }
+    idt = tulos;
+    vector<int> al, lop;
+    for (int tt = 0; tt < kaikki_alut.size(); ++tt)
+        if (idt.count(kaikki_alut[tt]) == 1 || idt.count(kaikki_loput[tt]) == 1) {
+            al.push_back(kaikki_alut[tt]);
+            lop.push_back(kaikki_loput[tt]);
+        }
+    alut = al;
+    loput = lop;
+    return (tulos);
+}
+bool operator < ( Manner const &o, Manner const &v) {
+    if (v.idt.size() < o.idt.size())
+        return(true); // Isommat mantereet alkuun
+    return(*v.idt.begin() < *o.idt.begin()); // Ratkaisee kaikki tasurit
+}
+
 
 /***********  INFOT-luokka ***********/
 /*************************************/
@@ -39,16 +91,18 @@ class Infot {
     vector < int > omistajat;
     vector < int > vihut;
     vector < int > omat;
-    int platinum;  // <- "todellinen" / 20, eli moneen yksikköön on varaa    void kierroksen_alku(vector < int > omistajat, vector < int > vihut, vector < int > omat, int platinaa);
+    int platinum;  // <- "todellinen" / 20, eli moneen yksikköön on varaa    
     int vro;
     // Talteen laskettavat tiedot
     vector <int> houkuttelevuudet;
-    // Funktioita datan pyörittelyyn
+    set<Manner> mantereet;
+    // Funktioita datan pyörittely**yn
     vector<int> jrj(vector<int> ehdokkaat, vector<int> ehdokkaiden_arvot);
     vector<int> omistukset(vector<int> ehdokkaat, int kenen);
     vector<int> laske_houkuttelevuudet(vector<int> ehdokkaat);
     bool uhattunako(int id);
     bool altisko(int id);
+    bool valmis_mannerko(Manner manner);    
   public:
     // Konstruktorit
     Infot();
@@ -68,6 +122,7 @@ class Infot {
     vector<int> naapurit(int id);
     int satunnaissuunta(int id);
     int houkutus(int id) {return(houkuttelevuudet[id]);}
+    void poista_valmiit_mantereet();
 };
 
 Infot::Infot() {}
@@ -81,6 +136,24 @@ Infot::Infot(int pelaajia, int id, vector<int> it, vector<int> tuotot, vector<in
   alut(alk)
 {
     idt = jrj(idt, platinatuotot);
+    set<Manner> uusi_kokoelma;
+    vector<int> apu;
+    vector<int> jaljella(idt);
+    while (jaljella.size() > 0) {
+        apu.clear();
+        Manner uusi;
+        set<int> menneet = uusi.alusta(jaljella[0], alut, loput);
+        uusi_kokoelma.insert(uusi);
+        for (int tt = 0; tt < jaljella.size(); ++tt)
+            if (menneet.count(jaljella[tt])==0)
+                apu.push_back(jaljella[tt]);
+        jaljella = apu;
+    }
+    mantereet = uusi_kokoelma;
+    cerr << "Mantereita luotu " << uusi_kokoelma.size() << ", niiden koot: " <<endl;
+    for (set<Manner>::iterator it=mantereet.begin(); it != mantereet.end(); it++)
+        cerr << (*it).idt.size() << " ";
+    cerr << endl;
 }
 
 void Infot::kierroksen_alku(vector < int > om, vector < int > vih, vector < int > o, int platinaa) {
@@ -90,6 +163,7 @@ void Infot::kierroksen_alku(vector < int > om, vector < int > vih, vector < int 
     omat = o;
     platinum = platinaa;
     houkuttelevuudet = laske_houkuttelevuudet(idt);
+    poista_valmiit_mantereet();
 }
 
 bool Infot::eka_kierrosko() {
@@ -106,7 +180,7 @@ vector<int> Infot::parhaat_alueet(int kenen) {
     if (kenen == -1) { // Poistetaan tyhjistä tuottamattomat
         vector<int> apu;
         for (int tt = 0; tt < tulos.size(); ++tt)
-            if (platinatuotot[tulos[tt]>1])
+            if (platinatuotot[tulos[tt]]>1)
                 apu.push_back(tulos[tt]);
         tulos = apu;
     }
@@ -136,7 +210,7 @@ vector<int> Infot::laske_houkuttelevuudet(vector<int> ehd) {
     // Alueeseen yhteydessä olevien alueiden vaikutus
     int etaisyys = 2; // Kuinka kaukaa
     int osuus = 20; // Kuinka monta prosenttia naapureiden arvosta siirtyy eteenpäin.
-    vector<int> lisat(idt.size());
+    vector<int> lisat(platinatuotot.size());
     for (int d = 0; d < etaisyys; ++d) {
         for (int tt = 0; tt < idt.size(); ++tt) {
             vector<int> naap = naapurit(idt[tt]);
@@ -191,11 +265,13 @@ vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
     vector<int> tulos;
     vector<int> ehdokkaat = naapurit(id);
     ehdokkaat.push_back(id); // Myös tämänhetkinen ruutu (eli liikkumattomuus) on otettava huomioon vaihtoehdoissa.
+    while (ehdokkaat.size() < moneenko_suuntaan)
+        ehdokkaat.push_back(id);
     reverse(ehdokkaat.begin(), ehdokkaat.end()); // Suositaan paikallaan pysymistä ärsyttävyyden minimoimiseksi.
     ehdokkaat = jrj(ehdokkaat, houkuttelevuudet);
     for (int tt = 0; tt < moneenko_suuntaan; ++tt)
     {
-        tulos.push_back(ehdokkaat[tt]);        
+        tulos.push_back(ehdokkaat[tt]);
         houkuttelevuudet[ehdokkaat[tt]] /= 2; // Jonoon lisätyn liikkeen johonkin ruutuun tulee heikentää sen houkuttelevuutta.
     }
     return(tulos);
@@ -235,6 +311,37 @@ bool Infot::altisko(int id) {
             tulos = true;
     return(tulos);
 }
+void Infot::poista_valmiit_mantereet() {
+    for (set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
+        if (valmis_mannerko(*it)) {
+            set<int> poistettavat = (*it).alueet();
+            vector<int> karsitut_idt, karsitut_alut, karsitut_loput;
+            for (int tt = 0; tt < idt.size(); ++tt)
+                if (poistettavat.count(idt[tt]) == 0)
+                    karsitut_idt.push_back(idt[tt]);
+            for (int tt = 0; tt < alut.size(); ++tt)
+                if (poistettavat.count(alut[tt]) == 0 && poistettavat.count(loput[tt]) == 0) {
+                    karsitut_alut.push_back(alut[tt]);
+                    karsitut_loput.push_back(loput[tt]);
+                }
+            idt = karsitut_idt;
+            alut = karsitut_alut;
+            loput = karsitut_loput;
+        }
+    }
+}
+bool Infot::valmis_mannerko(Manner manner) {
+    set<int> alueet = manner.alueet();
+    set<int>::iterator it = alueet.begin();
+    int ekan_omistaja = omistajat[*it];
+    bool tulos = (ekan_omistaja == -1) ? false : true;
+    while (it != alueet.end() && tulos == true) {
+        if (omistajat[*it] != ekan_omistaja || vihut[*it]>0)
+            tulos = false;
+        ++it;
+    }
+    return(tulos);
+}
 
 /***********  MEKANIIKKA-luokka ***********/
 /******************************************/
@@ -270,7 +377,6 @@ vector<int> Mekaniikka::valmistele_liikkeet() {
     for (int tt = 0; tt < alueet.size(); ++tt) {
         // Yli neljän ryppäitä kannattaa hajottaa
         int moneenko_suuntaan = info.montako_omaa(alueet[tt]) / 4 + 1;
-
         vector<int> suun = info.suunnat(alueet[tt], moneenko_suuntaan);
         for (int ss = 0; ss < moneenko_suuntaan-1; ++ss) 
             if (suun[ss] != alueet[tt]) {
