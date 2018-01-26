@@ -5,15 +5,6 @@
 #include <math.h> 
 #include <algorithm>
 
-// Alue 20 on Grönlantiin yhdistävän sillan Kanadan-puoleisesta päästä lounaanpuoleinen heksa.
-// 19 on sen pohjois-, 20 eteläpuolella.
-// 152-153 on Uuden-Seelannin kaistale.
-// 151 on Papua-Uusi-Guinea.
-// 110 on Intian eteläkärjestä kaksi pohjoiseen.
-// 70 on Kreikka.
-// 64-66 eteläisen Afrikan länsirannikko
-// <- Näistä pääteltävissä: numerointi kulkee pohjoisesta etelään ja sarake sarakkeelta lännestä itään.
-
 void t(std::vector<int> vektori) {
     std::cerr << vektori.size() << " alkiota: ";
     for (int tt = 0; tt < vektori.size();++tt)
@@ -65,7 +56,7 @@ Kehitysajatuksia:
     - peliasennot
         - esim. ADT niitä säätelemään - tosin käsin arvioitaessa ja säädettäessä tämän hyödyllisyys on kyseenalainen
         - mantereittain, kokonaisstrategiassa ja yksittäisissä liikkeissä
-    - tuottavien ruutujen omistussuhteiden (ja siten tulojen) tarkkailestd::minen
+    - tuottavien ruutujen omistussuhteiden (ja siten tulojen) tarkkaileminen
     - mantereiden tarkkailestd::minen
         - sillanpään varmistastd::minen voittoon tarvittavilla mantereilla
             - viimeiseen tyhjään laitetaan joukkoja
@@ -126,7 +117,7 @@ std::set<int> Manner::alusta(int id, std::vector<int> kaikki_alut, std::vector<i
 int Manner::matka(int alkuId, int loppuId) {
     if (idt.count(alkuId) == 0 || idt.count(loppuId) == 0) {
         return(10000); // Ainakin toinen päätepiste on toisella mantereella.
-std::cerr << "HEP! Pyydetty väärän mantereen etäisyyksiä... " << alkuId << " ja " << loppuId << std::endl;
+        std::cerr << "HEP! Pyydetty väärän mantereen etäisyyksiä... " << alkuId << " ja " << loppuId << std::endl;
     }
     return(etaisyydet[std::pair<int, int> (alkuId,loppuId)]);
 }
@@ -135,8 +126,8 @@ void  Manner::laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, 
     jo_loydetyt.insert(id);
     edelliset.insert(id);
     etaisyydet[std::pair<int, int> (id, id)] = 0;
-    int et_nyt =1;
-    while (jo_loydetyt.size() < alueita && et_nyt < 14) {
+    int et_nyt = 1;
+    while (jo_loydetyt.size() < alueita) {
         for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
             for (int tt = 0; tt < kaikki_alut.size(); ++tt) {
                 if (kaikki_alut[tt] == *valietappi && jo_loydetyt.count(kaikki_loput[tt]) == 0) {
@@ -156,9 +147,11 @@ void  Manner::laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, 
         edelliset = uusimmat;
         uusimmat.clear();
         ++et_nyt;
+        if (et_nyt > 40) {
+            std::cerr << "Etäisyyksiä ei saatu laskettua!" << std::endl;
+            return;
         }
-//t(jo_loydetyt);
-//t(yhden_etaisyydet);
+        }
 }
 
 
@@ -244,35 +237,21 @@ Infot::Infot(int pelaajia, int id, std::vector<int> it, std::vector<int> tuotot,
         jaljella = apu;
     }
     mantereet = uusi_kokoelma;
-    std::cerr << "Mantereita luotu " << uusi_kokoelma.size() << ", niiden koot: " <<std::endl;
-    for (std::set<Manner>::iterator it=mantereet.begin(); it != mantereet.end(); it++)
-        std::cerr << (*it).idt.size() << " ";
-    std::cerr << std::endl;
 }
 
 void Infot::kierroksen_alku(std::vector < int > om, std::vector < int > vih, std::vector < int > o, int platinaa) {
-    std::cerr << ++vro << ". vuoro alkaa." << std::endl;
     omistajat = om;
     vihut = vih;
     omat = o;
     platinum = platinaa;
     std::vector<int> pohjaht = laske_pohjahoukuttelevuudet(idt);
-/*std::cerr << "Pohjahoukuttelevuudet: " << std::endl;
-t(pohjaht);
-std::cerr << "Päivitykset manner mantereelta: " << std::endl;*/
     std::vector<int> jo(platinatuotot.size(), 0);
     poista_valmiit_mantereet();
     for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
         jo = laske_verkostohoukuttelevuudet(*it, jo, pohjaht);
 //t(jo);
     }
-std::cerr << "**52** " << jo[52] << " lisätty " << jo[52] - pohjaht[52] << std::endl << "**53** " << jo[53] << " lisätty " << jo[53] - pohjaht[53] << std::endl << "**59** " << jo[59] << " lisätty " << jo[59] - pohjaht[59] << std::endl  << "**110** " << jo[110] << " lisätty " << jo[110] - pohjaht[110] << std::endl << "**153** " << jo[153] << " lisätty " << jo[153] - pohjaht[153] << std::endl;
     houkuttelevuudet = jo;
-/*std::cerr << "Verkoston myötä lisätty: " << std::endl;
-t(jo-pohjaht);*/
-// Jostain syystä niemimaiden kärjet saavat hämmentävän paljon lisiä. Verkkofunktiossa on siis jotain vikaa!
-// Konkreettinen esimerkki: Ruutu 53 (Espanja) saa enemmän verkkolisiä kuin ruutu 59 (Keski-Eurooppa), vaikka näin ei voi olla.
-// Korostuneimmillaan tämä vaikutus on ruuduissa 152 ja 153 (Uusi-Seelanti), jotka 5000 verkkolisiä saatuaan ovat maailman houkuttelevimpia alueita.
 }
 
 bool Infot::eka_kierrosko() {
@@ -306,37 +285,27 @@ std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
     int alttiushaitta = 50;
     std::vector<int> tulos(platinatuotot.size());
     for (int tt = 0; tt < ehd.size(); ++tt) {
-bool n = false;
-if(ehd[tt] == 59 || ehd[tt] == 53 || ehd[tt] == 110  || ehd[tt] == 52 || ehd[tt] == 153) n = true;
-if (n) std::cerr <<"**"<< ehd[tt] << "**"<<std::endl;
         if (omistajat[ehd[tt]] != myId) {
             if (omistajat[ehd[tt]] == -1) {
                 tulos[ehd[tt]] = 200 * platinatuotot[ehd[tt]] + alttiushaitta * (playerCount-1);
-if (n) std::cerr << tulos[ehd[tt]] << " <- tyhjä, tuotanto " << platinatuotot[ehd[tt]] << std::endl;
             } else {
                 tulos[ehd[tt]] = 120 * platinatuotot[ehd[tt]] + alttiushaitta;
-if (n) std::cerr << tulos[ehd[tt]] << " <- vastustajan aluetta" << std::endl;
                 if (!uhattunako(ehd[tt])) {
                     tulos[ehd[tt]] = 2 * tulos[ehd[tt]];
-if (n) std::cerr << tulos[ehd[tt]] << " <- yksiköistä tyhjä alue" << std::endl;
                 }
                 if (vihut[ehd[tt]]==0) {
                     tulos[ehd[tt]] = 2 * tulos[ehd[tt]];
-if (n) std::cerr << tulos[ehd[tt]] << " <- ruutu on tyhjä" << std::endl;
                 }
             }
         }
         if (omistajat[ehd[tt]] == myId) {
             tulos[ehd[tt]] = 20 * platinatuotot[ehd[tt]];
-if (n) std::cerr << tulos[ehd[tt]] << " <- oma alue" << std::endl;
             if (uhattunako(ehd[tt])) {
                 tulos[ehd[tt]] = tulos[ehd[tt]] * 4 + 100;
-if (n) std::cerr << tulos[ehd[tt]] << " <- uhattuna" << std::endl;
             }
             tulos[ehd[tt]] = tulos[ehd[tt]] + alttiushaitta;
             if (!altisko(ehd[tt])) {
                 tulos[ehd[tt]] = 0;
-if (n) std::cerr << tulos[ehd[tt]] << " <- oman alueen sisällä" << std::endl;
             }
         }
     }
@@ -538,7 +507,6 @@ std::vector<int> Mekaniikka::valmistele_liikkeet() {
     return(tulos);
 }
 void Mekaniikka::tee_liikkeet(std::vector<int> liik) {
-//        std::cerr << "Liikkeitä: " << liik.size()/3 << std::endl;
     if (liik.size() < 3) {
         std::cout << "WAIT";
     } else {
@@ -590,7 +558,6 @@ void Mekaniikka::rautaa_rajalle(std::vector<int> & ost) {
     }
 }
 void Mekaniikka::tee_ostot(std::vector<int> ost) {
-//        std::cerr << "Ostoja: " << ost.size()/2 << std::endl;
     if (ost.size() < 2) {
         std::cout << "WAIT";
     } else {
