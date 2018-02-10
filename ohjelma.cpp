@@ -5,8 +5,8 @@
 #include <math.h> 
 #include <algorithm>
 
-/*                                          
-Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.
+/*
+Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE. 
 */
 
 int prospotenssiin(int x, int pr, int pow) {
@@ -50,6 +50,7 @@ Kehitysajatuksia:
     - aloituksessa otetaan huomioon 6:tta tuottavien heksojen määrä
     - hankinnat muistiin ja vasta sitten käskyksi, niin että saamaan heksaan voi kohdistua lisääkin hankintoja, jotka lasketaan yhteen
     - mantereille painoarvoja (mm. niiden tuottojen perusteella?)
+    - tyhjien täyttö - ja rautaa rajalle -lähestymistavat saman kattostrategian alle
 */
 
 /***********  MANNER-luokka ***********/
@@ -440,11 +441,26 @@ bool Infot::valmis_mannerko(Manner manner) {
 /******************************************/
 struct Vektoripari {
     Vektoripari() {}
-    Vektoripari(std::vector<int> e, std::vector<int> t) : eka(e), toka(t) {}    
-    std::vector<int> eka;
-    std::vector<int> toka;
+    Vektoripari(std::vector<int> e, std::vector<int> t) : lkmt(e), indeksit(t) {}    
+    std::vector<int> lkmt;
+    std::vector<int> indeksit;
+    void lisaa_idlle(int id, int paljonko = 1);
 };
-
+void Vektoripari::lisaa_idlle(int id, int paljonko ) {
+    int tt =0;
+    bool kesken = true;
+    while (kesken && tt < lkmt.size()) {
+        if (indeksit[tt] == id) {
+            ++lkmt[tt];
+            kesken = false;
+        }
+        ++tt;
+    }
+    if (kesken) {
+        lkmt.push_back(1);
+        indeksit.push_back(id);
+    }
+}
 
 
 /***********  MEKANIIKKA-luokka ***********/
@@ -524,8 +540,7 @@ void Mekaniikka::tyhjien_taytto(Vektoripari & ost) {
     if (tyhj.size() >0 && info.varaa() > 0) {
         int apu = 0;
         while (info.varaa() > 0 && apu < tyhj.size()) {
-            ost.eka.push_back(1);
-            ost.toka.push_back(tyhj[apu]);
+            ost.lisaa_idlle(tyhj[apu]);
             info.maksa(1, tyhj[apu]);
             ++apu;
         }
@@ -544,15 +559,14 @@ void Mekaniikka::rautaa_rajalle(Vektoripari & ost) {
     kuhunkin = (kuhunkin == 0) ? 1 : kuhunkin;
     int apu = 0;
     while (info.varaa() > 0 && apu < raja.size()) {
-        ost.eka.push_back(kuhunkin);
-        ost.toka.push_back(raja[apu]);
+        ost.lisaa_idlle(raja[apu], kuhunkin);
         info.maksa(1, raja[apu]);
         ++apu;
     }
 }
 void Mekaniikka::tee_ostot(Vektoripari ost) {
-    std::vector<int> ost_maarat = ost.eka;
-    std::vector<int> ost_kohteet = ost.toka;
+    std::vector<int> ost_maarat = ost.lkmt;
+    std::vector<int> ost_kohteet = ost.indeksit;
     if (ost_kohteet.size() != ost_maarat.size()) {
         std::cout << "WAIT";
         std::cerr << "Virheelliset ostot!" << std::endl;
@@ -574,14 +588,12 @@ void Mekaniikka::ekat_ostot(Vektoripari & ost) {
         int parhaaseen = rand() % 3;
         parhaaseen = parhaaseen -1;// + info.pelaajia(); // Tämän kanssa 318 / 762, poiston jälkeen 212 / 762! Jotenkin pelaajamäärä kannattanee silti huomioida...
         parhaaseen = std::min(4, parhaaseen);
-        ost.eka.push_back( (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa() );
-        ost.toka.push_back(tyhj[tt]);
+        ost.lisaa_idlle(tyhj[tt], (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa() );
         info.maksa((parhaaseen <= info.varaa()) ? parhaaseen:info.varaa(), tyhj[tt]);
         ++tt;
     }
     while (tt < tyhj.size() && info.varaa() > 0) {
-        ost.eka.push_back(1);
-        ost.toka.push_back(tyhj[tt]);
+        ost.lisaa_idlle(tyhj[tt]);
         info.maksa(1, tyhj[tt]);
         tt = tt + 1 + rand() % 3;
     }
