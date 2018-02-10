@@ -5,32 +5,10 @@
 #include <math.h> 
 #include <algorithm>
 
-void t(std::vector<int> vektori) {
-    std::cerr << vektori.size() << " alkiota: ";
-    for (int tt = 0; tt < vektori.size();++tt)
-        std::cerr << vektori[tt] << " ";
-    std::cerr << std::endl;
-}
-void t(std::set<int> setti) {
-    std::cerr << setti.size() << " alkiota: ";
-    for (std::set<int>::iterator it = setti.begin(); it != setti.end(); ++it)
-        std::cerr << *it << " ";
-    std::cerr << std::endl;
-}
-void t(std::map<int, int> parit) {
-    std::cerr << parit.size() << " alkiota: ";
-    for (std::map<int, int>::iterator it = parit.begin(); it != parit.end(); ++it)
-        std::cerr << std::get<0>(*it) << ":"<< std::get<1>(*it) << "  ";
-    std::cerr << std::endl;
-}
-void t(std::map<std::pair<int, int>, int> parit) {
-    std::cerr << parit.size() << " alkiota: ";
-    for (std::map<std::pair<int, int>, int>::iterator it = parit.begin(); it != parit.end(); ++it) {
-        std::pair<int, int> par = (*it).first;
-        std::cerr << par.first << ":" << par.second << " ; " << std::get<1>(*it) << "  ";
-    }
-    std::cerr << std::endl;
-}
+/*                                          
+Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.
+*/
+
 int prospotenssiin(int x, int pr, int pow) {
     if (pow > 6 || x == 0) return(0);
     double tulos = (double)x;
@@ -56,7 +34,7 @@ Kehitysajatuksia:
     - peliasennot
         - esim. ADT niitä säätelemään - tosin käsin arvioitaessa ja säädettäessä tämän hyödyllisyys on kyseenalainen
         - mantereittain, kokonaisstrategiassa ja yksittäisissä liikkeissä
-    - tuottavien ruutujen omistussuhteiden (ja siten tulojen) tarkkaileminen
+    - tuottavien ruutujen omistussuhteiden (ja siten tulojen) tarkkailestd::minen
     - mantereiden tarkkailestd::minen
         - sillanpään varmistastd::minen voittoon tarvittavilla mantereilla
             - viimeiseen tyhjään laitetaan joukkoja
@@ -69,6 +47,9 @@ Kehitysajatuksia:
             - vallataan
     - mantereen houkuttelevuuden tulisi laskea, jos sen houkutteleville alueille on jo kohdennetu riittäväksi arvioitu määrä joukkoja
     - jonoon lisätyn liikkeen johonkin ruutuun ei tule heikentää sen houkuttelevuutta siinä tapauksessa, että läsnä on puolustavia vastustajan yksiköitä enemmän kuin ruutuun on toistaiseksi kohdennettu omia yksiköitä
+    - aloituksessa otetaan huomioon 6:tta tuottavien heksojen määrä
+    - hankinnat muistiin ja vasta sitten käskyksi, niin että saamaan heksaan voi kohdistua lisääkin hankintoja, jotka lasketaan yhteen
+    - mantereille painoarvoja (mm. niiden tuottojen perusteella?)
 */
 
 /***********  MANNER-luokka ***********/
@@ -84,6 +65,9 @@ struct Manner {
     std::set<int> alueet() const {return(idt);}
     int matka(int alkuId, int loppuId);
     void  laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, std::vector<int> alut, std::vector<int> loput, int alueita);
+    
+///***
+std::map<std::pair<int, int>, int > eta() {return(etaisyydet);}
 };
 std::set<int> Manner::alusta(int id, std::vector<int> kaikki_alut, std::vector<int> kaikki_loput) {
     std::set<int> tulos, uudet;
@@ -249,7 +233,6 @@ void Infot::kierroksen_alku(std::vector < int > om, std::vector < int > vih, std
     poista_valmiit_mantereet();
     for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
         jo = laske_verkostohoukuttelevuudet(*it, jo, pohjaht);
-//t(jo);
     }
     houkuttelevuudet = jo;
 }
@@ -453,6 +436,17 @@ bool Infot::valmis_mannerko(Manner manner) {
     return(tulos);
 }
 
+/*************** vektoripari **************/
+/******************************************/
+struct Vektoripari {
+    Vektoripari() {}
+    Vektoripari(std::vector<int> e, std::vector<int> t) : eka(e), toka(t) {}    
+    std::vector<int> eka;
+    std::vector<int> toka;
+};
+
+
+
 /***********  MEKANIIKKA-luokka ***********/
 /******************************************/
 // Pelimekaniikkaa pyörittävä luokka
@@ -465,11 +459,11 @@ struct Mekaniikka {
     Infot info;
     std::vector<int> valmistele_liikkeet();
     void tee_liikkeet(std::vector<int> liik);
-    std::vector<int> valmistele_ostot();
-    void tee_ostot(std::vector<int> ost);
-    void ekat_ostot(std::vector<int> & ost);
-    void tyhjien_taytto(std::vector<int> & ost);
-    void rautaa_rajalle(std::vector<int> & ost);
+    Vektoripari valmistele_ostot();
+    void tee_ostot(Vektoripari ost_kohteet);
+    void ekat_ostot(Vektoripari & ost);
+    void tyhjien_taytto(Vektoripari & ost);
+    void rautaa_rajalle(Vektoripari & ost);
 } ;
 
 Mekaniikka::Mekaniikka(Infot in) {
@@ -515,30 +509,29 @@ void Mekaniikka::tee_liikkeet(std::vector<int> liik) {
     }
     std::cout << std::endl;
 }
-std::vector<int> Mekaniikka::valmistele_ostot() {
-    std::vector<int> tulos;
-    if (info.eka_kierrosko()) {
+Vektoripari Mekaniikka::valmistele_ostot() {
+    Vektoripari tulos;
+    if (info.eka_kierrosko()) 
         ekat_ostot(tulos);
-    }
     if (info.varaa())
         tyhjien_taytto(tulos);
     if (info.varaa())
         rautaa_rajalle(tulos);
     return(tulos);
 }
-void Mekaniikka::tyhjien_taytto(std::vector<int> & ost) {
+void Mekaniikka::tyhjien_taytto(Vektoripari & ost) {
     std::vector<int> tyhj = info.parhaat_alueet(-1);
     if (tyhj.size() >0 && info.varaa() > 0) {
         int apu = 0;
         while (info.varaa() > 0 && apu < tyhj.size()) {
-            ost.push_back(1);
-            ost.push_back(tyhj[apu]);
+            ost.eka.push_back(1);
+            ost.toka.push_back(tyhj[apu]);
             info.maksa(1, tyhj[apu]);
             ++apu;
         }
     }
 }
-void Mekaniikka::rautaa_rajalle(std::vector<int> & ost) {
+void Mekaniikka::rautaa_rajalle(Vektoripari & ost) {
     std::vector<int> raja = info.parhaat_alueet(0);
     if (raja.size()==0) return;
     int kynnys;
@@ -551,23 +544,29 @@ void Mekaniikka::rautaa_rajalle(std::vector<int> & ost) {
     kuhunkin = (kuhunkin == 0) ? 1 : kuhunkin;
     int apu = 0;
     while (info.varaa() > 0 && apu < raja.size()) {
-        ost.push_back(kuhunkin);
-        ost.push_back(raja[apu]);
+        ost.eka.push_back(kuhunkin);
+        ost.toka.push_back(raja[apu]);
         info.maksa(1, raja[apu]);
         ++apu;
     }
 }
-void Mekaniikka::tee_ostot(std::vector<int> ost) {
-    if (ost.size() < 2) {
+void Mekaniikka::tee_ostot(Vektoripari ost) {
+    std::vector<int> ost_maarat = ost.eka;
+    std::vector<int> ost_kohteet = ost.toka;
+    if (ost_kohteet.size() != ost_maarat.size()) {
+        std::cout << "WAIT";
+        std::cerr << "Virheelliset ostot!" << std::endl;
+        return;
+    }
+    if (ost_kohteet.size() < 2) {
         std::cout << "WAIT";
     } else {
-        for (int tt = 0; tt < ost.size(); ++tt)
-            std::cout << ost[tt] << " ";
+        for (int tt = 0; tt < ost_kohteet.size(); ++tt)
+            std::cout << ost_maarat[tt] << " " << ost_kohteet[tt] << " ";
     }
     std::cout << std::endl;
 }
-void Mekaniikka::ekat_ostot(std::vector<int> & ost) {
-t(info.naapurit(153));
+void Mekaniikka::ekat_ostot(Vektoripari & ost) {
     std::vector<int> tyhj = info.parhaat_alueet(-1);
     int tt = 0;
     int r = 1 + rand() % 4;
@@ -575,14 +574,14 @@ t(info.naapurit(153));
         int parhaaseen = rand() % 3;
         parhaaseen = parhaaseen -1;// + info.pelaajia(); // Tämän kanssa 318 / 762, poiston jälkeen 212 / 762! Jotenkin pelaajamäärä kannattanee silti huomioida...
         parhaaseen = std::min(4, parhaaseen);
-        ost.push_back( (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa() );
-        ost.push_back(tyhj[tt]);
+        ost.eka.push_back( (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa() );
+        ost.toka.push_back(tyhj[tt]);
         info.maksa((parhaaseen <= info.varaa()) ? parhaaseen:info.varaa(), tyhj[tt]);
         ++tt;
     }
     while (tt < tyhj.size() && info.varaa() > 0) {
-        ost.push_back(1);
-        ost.push_back(tyhj[tt]);
+        ost.eka.push_back(1);
+        ost.toka.push_back(tyhj[tt]);
         info.maksa(1, tyhj[tt]);
         tt = tt + 1 + rand() % 3;
     }
