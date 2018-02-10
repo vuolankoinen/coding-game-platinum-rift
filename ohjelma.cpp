@@ -270,6 +270,7 @@ Infot::Infot(int pelaajia, int id, std::vector<int> it, std::vector<int> tuotot,
 }
 
 void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vector<int> o, int platinaa) {
+    ++vro; // Tämä oli tippunut - ilman tätä 112, tämän kanssa
     omistajat = om;
     vihut = vih;
     omat = o;
@@ -284,6 +285,7 @@ void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vect
 }
 
 bool Infot::eka_kierrosko() {
+std::cerr << "Vuoro " << vro << std::endl;
     return(vro==1);
 }
 std::vector<int> Infot::parhaat_alueet(int kenen) {
@@ -634,12 +636,15 @@ void Mekaniikka::tee_ostot(Vektoripari ost) {
 }
 void Mekaniikka::ekat_ostot(Vektoripari & ost) {
     std::vector<int> tyhj = info.parhaat_alueet(-1);
+std::cerr << "Ekat ostot!" << std::endl;
     int tt = 0;
     int r = 1 + rand() % 4;
     while (tt < tyhj.size() && tt < r && info.varaa() > 0) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
         int parhaaseen = rand() % 3;
         parhaaseen = parhaaseen -1;// + info.pelaajia(); // Tämän kanssa 318 / 762, poiston jälkeen 212 / 762! Jotenkin pelaajamäärä kannattanee silti huomioida...
         parhaaseen = std::min(4, parhaaseen);
+std::cerr << "Parhaaseen meni " << parhaaseen << std::endl;
+if (parhaaseen > 1) std::cerr << "Parhaaseen meni " << parhaaseen << std::endl;
         ost.lisaa_idlle(tyhj[tt], (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa() );
         info.maksa((parhaaseen <= info.varaa()) ? parhaaseen:info.varaa(), tyhj[tt]);
         ++tt;
