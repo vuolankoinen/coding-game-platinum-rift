@@ -5,10 +5,47 @@
 #include <math.h> 
 #include <algorithm>
 
-/*
-Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE. 
+/*                                                                                                                                                     
+Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.                                         
 */
 
+// Alue 20 on Grönlantiin yhdistävän sillan Kanadan-puoleisesta päästä lounaanpuoleinen heksa.
+// 19 on sen pohjois-, 20 eteläpuolella.
+// 152-153 on Uuden-Seelannin kaistale.
+// 151 on Papua-Uusi-Guinea.
+// 110 on Intian eteläkärjestä kaksi pohjoiseen.
+// 70 on Kreikka.
+// 64-66 eteläisen Afrikan länsirannikko
+// <- Näistä pääteltävissä: numerointi kulkee pohjoisesta etelään ja sarake sarakkeelta lännestä itään.
+
+/*
+void t(std::vector<int> vektori) {
+    std::cerr << vektori.size() << " alkiota: ";
+    for (int tt = 0; tt < vektori.size();++tt)
+        std::cerr << vektori[tt] << " ";
+    std::cerr << std::endl;
+}
+void t(std::set<int> setti) {
+    std::cerr << setti.size() << " alkiota: ";
+    for (std::set<int>::iterator it = setti.begin(); it != setti.end(); ++it)
+        std::cerr << *it << " ";
+    std::cerr << std::endl;
+}
+void t(std::map<int, int> parit) {
+    std::cerr << parit.size() << " alkiota: ";
+    for (std::map<int, int>::iterator it = parit.begin(); it != parit.end(); ++it)
+        std::cerr << std::get<0>(*it) << ":"<< std::get<1>(*it) << "  ";
+    std::cerr << std::endl;
+}
+void t(std::map<std::pair<int, int>, int> parit) {
+    std::cerr << parit.size() << " alkiota: ";
+    for (std::map<std::pair<int, int>, int>::iterator it = parit.begin(); it != parit.end(); ++it) {
+        std::pair<int, int> par = (*it).first;
+        std::cerr << par.first << ":" << par.second << " ; " << std::get<1>(*it) << "  ";
+    }
+    std::cerr << std::endl;
+}
+*/
 int prospotenssiin(int x, int pr, int pow) {
     if (pow > 6 || x == 0) return(0);
     double tulos = (double)x;
@@ -51,6 +88,10 @@ Kehitysajatuksia:
     - hankinnat muistiin ja vasta sitten käskyksi, niin että saamaan heksaan voi kohdistua lisääkin hankintoja, jotka lasketaan yhteen
     - mantereille painoarvoja (mm. niiden tuottojen perusteella?)
     - tyhjien täyttö - ja rautaa rajalle -lähestymistavat saman kattostrategian alle
+     - 2 hengen peliin agressiivisempi, toisen liikkeisiin reagoiva strategia
+        - jos etumatkaa, jahdataan toisen yksiköitä ja hyökätään toisen alueille agressiivisesti
+    - useamman hengen aloitukseen mukaan kärkkymistä (ei mennä ensimmäiseen kahinaan mukaan, vaan hyvien ruutujen laitamille kärkkymään muiden tappeluiden jäljiltä tyhjentyneitä ruutuja)
+
 */
 
 /***********  MANNER-luokka ***********/
@@ -58,19 +99,18 @@ Kehitysajatuksia:
 // Toisiinsa yhteydessä olevien ruutujen joukko
 struct Manner {
     // Pseudo-konstruktori, palauttaa mantereen alueet
-    std::set<int> alusta(int id, std::vector<int> alut, std::vector<int> loput);
+    std::set<int> alusta(int id, std::vector<int> alut, std::vector<int> loput, std::vector<int> tuotot);
     // arvot
     std::set<int> idt;
     std::map<std::pair<int, int>, int > etaisyydet;
+    int platinaa; // Ennen tätä sijoitus oli 140, jälkeen 112
     // funktiot
     std::set<int> alueet() const {return(idt);}
     int matka(int alkuId, int loppuId);
-    void  laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, std::vector<int> alut, std::vector<int> loput, int alueita);
-    
-///***
-std::map<std::pair<int, int>, int > eta() {return(etaisyydet);}
+    void laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, std::vector<int> alut, std::vector<int> loput, int alueita);
+    void aseta_tuotto(int tuot) {platinaa = tuot;}
 };
-std::set<int> Manner::alusta(int id, std::vector<int> kaikki_alut, std::vector<int> kaikki_loput) {
+std::set<int> Manner::alusta(int id, std::vector<int> kaikki_alut, std::vector<int> kaikki_loput, std::vector<int> tuotot) {
     std::set<int> tulos, uudet;
     tulos.insert(id);
     uudet.insert(id);
@@ -97,6 +137,11 @@ std::set<int> Manner::alusta(int id, std::vector<int> kaikki_alut, std::vector<i
     for (std::set<int>::iterator lahtop = tulos.begin(); lahtop != tulos.end(); ++lahtop)
         laske_dt(etais, *lahtop, kaikki_alut, kaikki_loput, idt.size());
     etaisyydet = etais;
+    // Lasketaan mantereen platinatuotot.
+    platinaa = 0;
+    for (std::set<int>::iterator it=tulos.begin(); it!=tulos.end(); ++it) {
+        platinaa = platinaa + tuotot[*it];
+    }
     return (tulos);
 }
 int Manner::matka(int alkuId, int loppuId) {
@@ -142,7 +187,7 @@ void  Manner::laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, 
 
 bool operator < ( Manner const &o, Manner const &v) {
     if (v.idt.size() < o.idt.size())
-        return(true); // Isommat mantereet alkuun
+        return(true);
     return(*v.idt.begin() < *o.idt.begin()); // Ratkaisee kaikki tasurit
 }
 
@@ -214,7 +259,7 @@ Infot::Infot(int pelaajia, int id, std::vector<int> it, std::vector<int> tuotot,
     while (jaljella.size() > 0) {
         apu.clear();
         Manner uusi;
-        std::set<int> menneet = uusi.alusta(jaljella[0], alut, loput);
+        std::set<int> menneet = uusi.alusta(jaljella[0], alut, loput, platinatuotot);
         uusi_kokoelma.insert(uusi);
         for (int tt = 0; tt < jaljella.size(); ++tt)
             if (menneet.count(jaljella[tt])==0)
@@ -224,7 +269,7 @@ Infot::Infot(int pelaajia, int id, std::vector<int> it, std::vector<int> tuotot,
     mantereet = uusi_kokoelma;
 }
 
-void Infot::kierroksen_alku(std::vector < int > om, std::vector < int > vih, std::vector < int > o, int platinaa) {
+void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vector<int> o, int platinaa) {
     omistajat = om;
     vihut = vih;
     omat = o;
@@ -291,6 +336,13 @@ std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
             if (!altisko(ehd[tt])) {
                 tulos[ehd[tt]] = 0;
             }
+        }
+    }
+    // Lisätään mantereittain tuottojen perusteella vielä tasuriratkaisuja.
+    for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
+        std::set<int> al = (*it).alueet();
+        for (std::set<int>::iterator al_it = al.begin(); al_it != al.end(); ++al_it) {
+            tulos[*al_it] += (*it).platinaa;
         }
     }
     return(tulos);
