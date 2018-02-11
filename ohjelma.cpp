@@ -5,47 +5,10 @@
 #include <math.h> 
 #include <algorithm>
 
-/*                                                                                                                                                     
-Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.                                         
-*/
-
-// Alue 20 on Grönlantiin yhdistävän sillan Kanadan-puoleisesta päästä lounaanpuoleinen heksa.
-// 19 on sen pohjois-, 20 eteläpuolella.
-// 152-153 on Uuden-Seelannin kaistale.
-// 151 on Papua-Uusi-Guinea.
-// 110 on Intian eteläkärjestä kaksi pohjoiseen.
-// 70 on Kreikka.
-// 64-66 eteläisen Afrikan länsirannikko
-// <- Näistä pääteltävissä: numerointi kulkee pohjoisesta etelään ja sarake sarakkeelta lännestä itään.
-
 /*
-void t(std::vector<int> vektori) {
-    std::cerr << vektori.size() << " alkiota: ";
-    for (int tt = 0; tt < vektori.size();++tt)
-        std::cerr << vektori[tt] << " ";
-    std::cerr << std::endl;
-}
-void t(std::set<int> setti) {
-    std::cerr << setti.size() << " alkiota: ";
-    for (std::set<int>::iterator it = setti.begin(); it != setti.end(); ++it)
-        std::cerr << *it << " ";
-    std::cerr << std::endl;
-}
-void t(std::map<int, int> parit) {
-    std::cerr << parit.size() << " alkiota: ";
-    for (std::map<int, int>::iterator it = parit.begin(); it != parit.end(); ++it)
-        std::cerr << std::get<0>(*it) << ":"<< std::get<1>(*it) << "  ";
-    std::cerr << std::endl;
-}
-void t(std::map<std::pair<int, int>, int> parit) {
-    std::cerr << parit.size() << " alkiota: ";
-    for (std::map<std::pair<int, int>, int>::iterator it = parit.begin(); it != parit.end(); ++it) {
-        std::pair<int, int> par = (*it).first;
-        std::cerr << par.first << ":" << par.second << " ; " << std::get<1>(*it) << "  ";
-    }
-    std::cerr << std::endl;
-}
+Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.
 */
+
 int prospotenssiin(int x, int pr, int pow) {
     if (pow > 6 || x == 0) return(0);
     double tulos = (double)x;
@@ -53,46 +16,6 @@ int prospotenssiin(int x, int pr, int pow) {
         tulos = tulos * pr / 100.0;
     return(std::floor(tulos));
 }
-std::vector<int> operator + (std::vector<int> const &o, std::vector<int> const &v) {
-    std::vector<int> tulos(std::min(v.size(), o.size()));
-    for (int tt = 0; tt < std::min(v.size(), o.size()); ++tt)
-        tulos[tt] = v[tt] + o[tt];
-    return(tulos);
-}
-std::vector<int> operator - (std::vector<int> const &v, std::vector<int> const &o) {
-    std::vector<int> tulos(std::min(v.size(), o.size()));
-    for (int tt = 0; tt < std::min(v.size(), o.size()); ++tt)
-        tulos[tt] = v[tt] - o[tt];
-    return(tulos);
-}
-
-/* 
-Kehitysajatuksia:
-    - peliasennot
-        - esim. ADT niitä säätelemään - tosin käsin arvioitaessa ja säädettäessä tämän hyödyllisyys on kyseenalainen
-        - mantereittain, kokonaisstrategiassa ja yksittäisissä liikkeissä
-    - tuottavien ruutujen omistussuhteiden (ja siten tulojen) tarkkailestd::minen
-    - mantereiden tarkkailestd::minen
-        - sillanpään varmistastd::minen voittoon tarvittavilla mantereilla
-            - viimeiseen tyhjään laitetaan joukkoja
-            - neljän poppoolla voi ajella tuottaviin ruutuihin
-            - pienemmällä poppoolla väistellään pitkin maaseutua
-        - kullekin mantereelle oma asento?
-            - normaali
-            - puhdistetaan
-            - pidetään sillanpäätä auki
-            - vallataan
-    - mantereen houkuttelevuuden tulisi laskea, jos sen houkutteleville alueille on jo kohdennetu riittäväksi arvioitu määrä joukkoja
-    - jonoon lisätyn liikkeen johonkin ruutuun ei tule heikentää sen houkuttelevuutta siinä tapauksessa, että läsnä on puolustavia vastustajan yksiköitä enemmän kuin ruutuun on toistaiseksi kohdennettu omia yksiköitä
-    - aloituksessa otetaan huomioon 6:tta tuottavien heksojen määrä
-    - hankinnat muistiin ja vasta sitten käskyksi, niin että saamaan heksaan voi kohdistua lisääkin hankintoja, jotka lasketaan yhteen
-    - mantereille painoarvoja (mm. niiden tuottojen perusteella?)
-    - tyhjien täyttö - ja rautaa rajalle -lähestymistavat saman kattostrategian alle
-     - 2 hengen peliin agressiivisempi, toisen liikkeisiin reagoiva strategia
-        - jos etumatkaa, jahdataan toisen yksiköitä ja hyökätään toisen alueille agressiivisesti
-    - useamman hengen aloitukseen mukaan kärkkymistä (ei mennä ensimmäiseen kahinaan mukaan, vaan hyvien ruutujen laitamille kärkkymään muiden tappeluiden jäljiltä tyhjentyneitä ruutuja)
-
-*/
 
 /***********  MANNER-luokka ***********/
 /*************************************/
@@ -236,7 +159,6 @@ class Infot {
     std::vector<int> suunnat(int id, int moneenko_suuntaan);
     int maksa(int paljonko, int mihin);
     std::vector<int> naapurit(int id);
-    int satunnaissuunta(int id);
     int houkutus(int id) {return(houkuttelevuudet[id]);}
     void poista_valmiit_mantereet();
     bool uhattunako(int id);
@@ -362,16 +284,10 @@ std::vector<int> Infot::laske_verkostohoukuttelevuudet(Manner manner, std::vecto
     }
     return(jo);
 }
-std::vector<int> operator / (std::vector<int> const &v, int const &n) {
-    std::vector<int> tulos(v.size());
-    for (int tt = 0; tt < v.size(); ++tt)
-        tulos[tt] = v[tt] / n;
-    return(tulos);
-}
 
 int Infot::maksa(int x, int id) {
     platinum -= x;
-    houkuttelevuudet[id] = 0;
+    houkuttelevuudet[id] = houkuttelevuudet[id]*2/3;
     return(platinum);
 }
 std::vector<int> Infot::jrj(std::vector<int> ehdokkaat, std::vector<int> arvot) {
@@ -441,14 +357,6 @@ bool Infot::uhattunako(int id) {
             tulos = true;
     if (vihut[id] > 0)
         tulos = true;
-    return(tulos);
-}
-int Infot::satunnaissuunta(int id) {
-    std::vector<int> na = naapurit(id);
-    if (na.size() == 0) return(-1);
-    int mx = na.size();
-    int r = rand() % mx;
-    int tulos = na[r];
     return(tulos);
 }
 bool Infot::altisko(int id) {
@@ -585,7 +493,7 @@ Vektoripari Mekaniikka::valmistele_ostot() {
         ekat_ostot(tulos);
     if (info.varaa())
         tyhjien_taytto(tulos);
-    if (info.varaa())
+    while (info.varaa())
         rautaa_rajalle(tulos);
     return(tulos);
 }
@@ -629,8 +537,10 @@ void Mekaniikka::tee_ostot(Vektoripari ost) {
     if (ost_kohteet.size() < 2) {
         std::cout << "WAIT";
     } else {
-        for (int tt = 0; tt < ost_kohteet.size(); ++tt)
+        for (int tt = 0; tt < ost_kohteet.size(); ++tt) {
             std::cout << ost_maarat[tt] << " " << ost_kohteet[tt] << " ";
+            if (ost_maarat[tt] > 1) std::cerr << ost_maarat[tt] << " " << ost_kohteet[tt] << std::endl;
+        }
     }
     std::cout << std::endl;
 }

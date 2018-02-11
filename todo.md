@@ -1,0 +1,33 @@
+Kehitysajatuksia:
+- peliasennot
+- esim. ADT niitä säätelemään - tosin käsin arvioitaessa ja säädettäessä tämän hyödyllisyys on kyseenalainen
+- mantereittain, kokonaisstrategiassa ja yksittäisissä liikkeissä
+- tuottavien ruutujen omistussuhteiden (ja siten tulojen) tarkkailestd::minen
+- mantereiden tarkkailestd::minen
+- sillanpään varmistastd::minen voittoon tarvittavilla mantereilla
+- viimeiseen tyhjään laitetaan joukkoja
+- neljän poppoolla voi ajella tuottaviin ruutuihin
+- pienemmällä poppoolla väistellään pitkin maaseutua
+- kullekin mantereelle oma asento?
+- normaali
+- puhdistetaan
+- pidetään sillanpäätä auki
+- vallataan
+- mantereen houkuttelevuuden tulisi laskea, jos sen houkutteleville alueille on jo kohdennetu riittäväksi arvioitu määrä joukkoja
+- jonoon lisätyn liikkeen johonkin ruutuun ei tule heikentää sen houkuttelevuutta siinä tapauksessa, että läsnä on puolustavia vastustajan yksiköitä enemmän kuin ruutuun on toistaiseksi kohdennettu omia yksiköitä
+- aloituksessa otetaan huomioon 6:tta tuottavien heksojen määrä
+- hankinnat muistiin ja vasta sitten käskyksi, niin että saamaan heksaan voi kohdistua lisääkin hankintoja, jotka lasketaan yhteen
+- mantereille painoarvoja (mm. niiden tuottojen perusteella?)
+- tyhjien täyttö - ja rautaa rajalle -lähestymistavat saman kattostrategian alle
+- 2 hengen peliin agressiivisempi, toisen liikkeisiin reagoiva strategia
+- jos etumatkaa, jahdataan toisen yksiköitä ja hyökätään toisen alueille agressiivisesti
+- useamman hengen aloitukseen mukaan kärkkymistä (ei mennä ensimmäiseen kahinaan mukaan, vaan hyvien ruutujen laitamille kärkkymään muiden tappeluiden jäljiltä tyhjentyneitä ruutuja)
+- refaktoroi: info.valmisko(manner) -> manner.valmisko(info.omist)
+- naapurit(id) -> naapurit(id, etaisyys)
+- const kaikkialle, missä mahdollista
+- Keille manner on vielä avoin?
+- Paljoonko alueeseen kullakin pelaajalla on vielä mahdollisuus?
+- uhat pelaajien tuottojen mukaan (kituuttavan pelaajan tyhjä alue selustassa ei juuri vaadi reaktioita)
+- Sillanpäät sulkeutumassa?
+- Ei liikuta nollanarvoisiin suuntiin -> Kuinka monta suuntaa -parametri vain ehdotukseksi, jota vähemmänkin suuntia voi palauttaa
+- Jos vain huonoja suuntia, haetaan reitti pois huonolta alueelta
