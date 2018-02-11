@@ -5,7 +5,7 @@
 #include <math.h> 
 #include <algorithm>
 
-/*                                                                                                                                                     
+/*                                      
 Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.
 */
 
@@ -78,7 +78,8 @@ void  Manner::laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, 
     edelliset.insert(id);
     etaisyydet[std::pair<int, int> (id, id)] = 0;
     int et_nyt = 1;
-    while (jo_loydetyt.size() < alueita) {
+    while (edelliset.size() > 0) {
+//    while (jo_loydetyt.size() < alueita) {
         for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
             for (int tt = 0; tt < kaikki_alut.size(); ++tt) {
                 if (kaikki_alut[tt] == *valietappi && jo_loydetyt.count(kaikki_loput[tt]) == 0) {
@@ -133,6 +134,7 @@ class Infot {
     // Talteen laskettavat tiedot
     std::vector <int> houkuttelevuudet;
     std::set<Manner> mantereet;
+    int aikaa_viepia_tehty;
     // Funktioita datan pyörittely**yn
     std::vector<int> jrj(std::vector<int> ehdokkaat, std::vector<int> ehdokkaiden_arvot);
     std::vector<int> omistukset(std::vector<int> ehdokkaat, int kenen);
@@ -142,6 +144,9 @@ class Infot {
     bool valmis_mannerko(Manner manner);    
     int pelaajia() {return(playerCount);}
     std::vector<int> reitti_omalta_alueelta(int id);
+    void lisaa_ohjaava_gradientti(int id);
+    int etsi_lahin_vihu(int id);
+    int etsi_lahin_naapuri(int alkaen_mista, int kenen);
   public:
     // Konstruktorit
     Infot();
@@ -193,6 +198,7 @@ Infot::Infot(int pelaajia, int id, std::vector<int> it, std::vector<int> tuotot,
 
 void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vector<int> o, int platinaa) {
     ++vro; // Tämä oli tippunut - ilman tätä 112, tämän kanssa 1
+    aikaa_viepia_tehty = 0;
     omistajat = om;
     vihut = vih;
     omat = o;
@@ -234,7 +240,7 @@ std::vector<int> Infot::omistukset(std::vector<int> ehdokkaat, int kenen) {
     return(tulos);
 }
 std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
-    int alttiushaitta = 25;  // 25: 108/124, 50: 105/128, 150: 123/124
+    int alttiushaitta = 60;  // 25: 108/124, 35: 121/124, 50: 105/128, 150: 123/124
     std::vector<int> tulos(platinatuotot.size());
     for (int tt = 0; tt < ehd.size(); ++tt) {
         if (omistajat[ehd[tt]] != myId) {
@@ -266,9 +272,11 @@ std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
 // Lisätään mantereittain tuottojen perusteella tasuriratkaisijoita.
 void Infot::lisaa_mannerten_painoarvot() {
     for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
-        std::set<int> al = (*it).alueet();
-        for (std::set<int>::iterator al_it = al.begin(); al_it != al.end(); ++al_it)
-            houkuttelevuudet[*al_it] += (*it).platinaa;
+        if (!valmis_mannerko(*it)) {
+            std::set<int> al = (*it).alueet();
+            for (std::set<int>::iterator al_it = al.begin(); al_it != al.end(); ++al_it)
+                houkuttelevuudet[*al_it] += (*it).platinaa;
+        }
     }
 }
 std::vector<int> Infot::laske_verkostohoukuttelevuudet(Manner manner, std::vector<int> jo, std::vector<int> pohjaht) {
@@ -333,22 +341,88 @@ std::vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
     ehdokkaat = jrj(ehdokkaat, houkuttelevuudet);
     while (ehdokkaat.size()>0 && houkuttelevuudet[ehdokkaat[ehdokkaat.size()-1]]==0)
         ehdokkaat.pop_back();
-    if (ehdokkaat.size()==0)
-        return(reitti_omalta_alueelta());
-    for (int tt = 0; tt < moneenko_suuntaan; ++tt)
-    {
+    if (ehdokkaat.size() == 0) 
+        return(reitti_omalta_alueelta(id));
+    for (int tt = 0; tt < moneenko_suuntaan; ++tt) {
         tulos.push_back(ehdokkaat[tt]);
         if (vihut[ehdokkaat[tt]]==0) houkuttelevuudet[ehdokkaat[tt]] /= 2; // Jonoon lisätyn liikkeen johonkin ruutuun tulee heikentää sen houkuttelevuutta.
     }
     return(tulos);
 }
-// Ohjaa lähintä kiistanalaista heksaa kohden.
 std::vector<int> Infot::reitti_omalta_alueelta(int id) {
-    lisaa_gradientti(id);
-    return(suunnat(id, 1));
+    std::vector<int> uus;
+    std::vector<int> ehdokkaat = naapurit(id);
+    if (++aikaa_viepia_tehty > 5) {
+        uus.push_back(ehdokkaat[0]);
+        return(uus);
+    }
+    int tulos(id);
+    int kohde = etsi_lahin_vihu(id);
+    bool kesken = true;
+    while (kesken) {
+        // Tarkistetaan, tuliko valmista
+        for (std::vector<int>::iterator it = ehdokkaat.begin(); it != ehdokkaat.end(); ++it) {
+            if (kohde == *it) {
+                tulos = *it;
+                kesken = false;
+            }
+        }
+        // Etsitään seuraavaksi lähin kohde
+        kohde = etsi_lahin_naapuri(id, kohde);
+    }
+    uus.push_back(tulos);
+    return(uus);
 }
-// Lisää oman alueen sisälle houkuttelevuuksiin alueelta ulos ohjaavat lisät.
-void Infot::lisaa_gradientti(int id) {
+int Infot::etsi_lahin_vihu(int id) {
+    int tulos(id);
+    std::set<int> jo_loydetyt, edelliset, uusimmat;
+    jo_loydetyt.insert(id);
+    edelliset.insert(id);
+    while (edelliset.size() > 0 && tulos == id) {
+        for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
+            for (int ss = 0; ss < alut.size(); ++ss) {
+                if (alut[ss] == *valietappi && jo_loydetyt.count(loput[ss]) == 0)
+                    uusimmat.insert(loput[ss]);
+                if (loput[ss] == *valietappi && jo_loydetyt.count(alut[ss]) == 0)
+                    uusimmat.insert(alut[ss]);
+            }
+        }
+        for (std::set<int>::iterator uusi = uusimmat.begin(); uusi != uusimmat.end(); ++uusi) {
+            if (omistajat[*uusi] != myId || vihut[*uusi]>0)
+                tulos = *uusi;
+        }
+        edelliset = uusimmat;
+        uusimmat.clear();
+    }
+    if (tulos == id)
+        std::cerr << "Varoitus: etsittyä vihua ei löytynyt." << std::endl;
+    return(tulos);
+}
+int Infot::etsi_lahin_naapuri(int alkaen_mista, int id) {
+    std::vector<int> kohteet = naapurit(id);
+    int tulos(alkaen_mista);
+    std::set<int> jo_loydetyt, edelliset, uusimmat;
+    jo_loydetyt.insert(alkaen_mista);
+    edelliset.insert(alkaen_mista);
+    while (edelliset.size() > 0 && tulos == alkaen_mista) {
+        for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
+            for (int ss = 0; ss < alut.size(); ++ss) {
+                if (alut[ss] == *valietappi && jo_loydetyt.count(loput[ss]) == 0)
+                    uusimmat.insert(loput[ss]);
+                if (loput[ss] == *valietappi && jo_loydetyt.count(alut[ss]) == 0)
+                    uusimmat.insert(alut[ss]);
+            }
+        }
+        for (std::set<int>::iterator uusi = uusimmat.begin(); uusi != uusimmat.end(); ++uusi)
+            for (int kk = 0; kk < kohteet.size(); ++kk)
+                if (kohteet[kk] == *uusi)
+                    tulos = *uusi;
+        edelliset = uusimmat;
+        uusimmat.clear();
+    }
+    if (tulos == alkaen_mista)
+        std::cerr << "Varoitus: etsittyä vihua ei löytynyt." << std::endl;
+    return(tulos);
 }
 std::vector<int> Infot::naapurit(int id) {
     std::vector<int> tulos;
@@ -474,14 +548,16 @@ std::vector<int> Mekaniikka::valmistele_liikkeet() {
         int joukkokoko = (info.uhattunako(alueet[tt])) ? 4:1;
         int moneenko_suuntaan = info.montako_omaa(alueet[tt]) / joukkokoko + 1;
         std::vector<int> suun = info.suunnat(alueet[tt], moneenko_suuntaan);
+        moneenko_suuntaan = suun.size();
         for (int ss = 0; ss < moneenko_suuntaan-1; ++ss) 
             if (suun[ss] != alueet[tt]) {
                 tulos.push_back(joukkokoko);
                 tulos.push_back(alueet[tt]);
                 tulos.push_back(suun[ss]);
         }
-        if (suun[moneenko_suuntaan-1] != alueet[tt]) {
-            int jaaneet = info.montako_omaa(alueet[tt]) % joukkokoko;
+        // Jakojäännös vielä.
+        if (moneenko_suuntaan > 0 && suun[moneenko_suuntaan-1] != alueet[tt]) {
+            int jaaneet = (joukkokoko == 1)? info.montako_omaa(alueet[tt]) - joukkokoko * (moneenko_suuntaan-1) : info.montako_omaa(alueet[tt]) % joukkokoko;
             if (jaaneet) {
                 tulos.push_back(jaaneet);
                 tulos.push_back(alueet[tt]);

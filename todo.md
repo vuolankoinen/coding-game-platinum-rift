@@ -28,6 +28,7 @@ Kehitysajatuksia:
 - uhat pelaajien tuottojen mukaan (kituuttavan pelaajan tyhjä alue selustassa ei juuri vaadi reaktioita)
 - uhkiin mukaan aukinaisten mantereiden määrät
 - Sillanpäät sulkeutumassa?
-- Ei liikuta nollanarvoisiin suuntiin -> Kuinka monta suuntaa -parametri vain ehdotukseksi, jota vähemmänkin suuntia voi palauttaa
-- Jos vain huonoja suuntia, haetaan reitti pois huonolta alueelta
 - Huom. osa näistä parannuksista edellyttää, että mantereiden sulkemisen yhteydessä kirjataan sen alueet ja tuotot pysyvästi mantereen voittaneelle pelaajalle.
+- Vain yhden tyhjän ruudun altistamien rajojen tunnistaminen (jolloin voi siis huoletta edetä)
+- Jonkinlainen gradienttipohjainen omalta alueelta pois hakeutuminen, jotta alueelta poistuminen ei vaadi liian aikaa vievää laskentaa
+- Vaihtoehtoisesti yksittäisten kohteiden osoittaminen tietyille yksiköille omalla alueella (ja miksei laajemminkin)
