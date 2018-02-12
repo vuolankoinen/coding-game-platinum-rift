@@ -19,7 +19,6 @@ Kehitysajatuksia:
 - tyhjien täyttö - ja rautaa rajalle -lähestymistavat saman kattostrategian alle
 - 2 hengen peliin agressiivisempi, toisen liikkeisiin reagoiva strategia
   - jos etumatkaa, jahdataan toisen yksiköitä ja hyökätään toisen alueille agressiivisesti
-- useamman hengen aloitukseen mukaan kärkkymistä (ei mennä ensimmäiseen kahinaan mukaan, vaan hyvien ruutujen laitamille kärkkymään muiden tappeluiden jäljiltä tyhjentyneitä ruutuja)
 - refaktoroi: info.valmisko(manner) -> manner.valmisko(info.omist)
 - naapurit(id) -> naapurit(id, etaisyys)
 - const kaikkialle, missä mahdollista
@@ -32,3 +31,4 @@ Kehitysajatuksia:
 - Vain yhden tyhjän ruudun altistamien rajojen tunnistaminen (jolloin voi siis huoletta edetä)
 - Jonkinlainen gradienttipohjainen omalta alueelta pois hakeutuminen, jotta alueelta poistuminen ei vaadi liian aikaa vievää laskentaa
 - Vaihtoehtoisesti yksittäisten kohteiden osoittaminen tietyille yksiköille omalla alueella (ja miksei laajemminkin)
+- Jumahtaneiden tilanteiden tunnistaminen ja niihin reaktiona muurinmurtajaoperaatiot

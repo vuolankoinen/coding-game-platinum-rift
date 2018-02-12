@@ -347,7 +347,7 @@ std::vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
 std::vector<int> Infot::reitti_omalta_alueelta(int id) {
     std::vector<int> uus;
     std::vector<int> ehdokkaat = naapurit(id);
-    if (++aikaa_viepia_tehty > 5) {
+    if (++aikaa_viepia_tehty > 4) {
         uus.push_back(ehdokkaat[0]);
         return(uus);
     }
@@ -508,6 +508,8 @@ struct Vektoripari {
     void lisaa_idlle(int id, int paljonko = 1);
 };
 void Vektoripari::lisaa_idlle(int id, int paljonko ) {
+    if (paljonko==0)
+        return;
     int tt =0;
     bool kesken = true;
     while (kesken && tt < lkmt.size()) {
@@ -653,16 +655,24 @@ void Mekaniikka::tee_ostot(Vektoripari ost) {
     std::cout << std::endl;
 }
 void Mekaniikka::ekat_ostot(Vektoripari & ost) {
-    int kuinka_monta_reserviin = 2 * info.pelaajia() - 4; // GL 114 -> 106
+//    int kuinka_monta_reserviin = (rand() % 6) * (info.pelaajia() - 2); // Satunnainen: 
+    int kuinka_monta_reserviin = (rand() % 6); // Yläpainotteinen: 
+    while ((rand()%12) > kuinka_monta_reserviin  &&  kuinka_monta_reserviin < 10)
+        ++kuinka_monta_reserviin;
+    kuinka_monta_reserviin *= (info.pelaajia() - 2);
+
+//    int kuinka_monta_reserviin = ( (rand() % 2) + (rand() % 2) + (rand() % 2) + (rand() % 3)) * (info.pelaajia() - 2); // Keskelle painottunut: GL128
     std::vector<int> tyhj = info.parhaat_alueet(-1);
     int tt = 0;
     int r = 1 + rand() % 4;
     while (tt < tyhj.size() && tt < r && info.varaa() > kuinka_monta_reserviin) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
-        int parhaaseen = rand() % 4; // 3: 122, 4: 107
-        parhaaseen = parhaaseen -1;// + info.pelaajia(); // Tämän kanssa 318 / 762, poiston jälkeen 212 / 762!
-        parhaaseen = std::min(4, parhaaseen);
-        ost.lisaa_idlle(tyhj[tt], (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa() );
-        info.maksa((parhaaseen <= info.varaa()) ? parhaaseen:info.varaa(), tyhj[tt]);
+        int parhaaseen = rand() % 4; // Tämä ja -1 - 3: 122, 4: 107
+        while ((rand() % 2))
+            --parhaaseen; // Eli alapainotteisesti.
+        parhaaseen = parhaaseen;// + info.pelaajia(); // Tämän kanssa 318 / 762, poiston jälkeen 212 / 762!
+        parhaaseen = (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa();
+        ost.lisaa_idlle(tyhj[tt], parhaaseen );
+        info.maksa(parhaaseen, tyhj[tt]);
         ++tt;
     }
     while (tt < tyhj.size() && info.varaa() > kuinka_monta_reserviin) {
