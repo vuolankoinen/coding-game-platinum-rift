@@ -3,10 +3,10 @@
 #include <set>
 #include <map>
 #include <math.h>
-#include <algorithm>
-#include <time.h>
+#include <algorithm> 
+#include <time.h> 
 
-/*                                                                                                                                                     
+/*
 Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.
 */
 
@@ -80,7 +80,6 @@ void  Manner::laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, 
     etaisyydet[std::pair<int, int> (id, id)] = 0;
     int et_nyt = 1;
     while (edelliset.size() > 0) {
-//    while (jo_loydetyt.size() < alueita) {
         for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
             for (int tt = 0; tt < kaikki_alut.size(); ++tt) {
                 if (kaikki_alut[tt] == *valietappi && jo_loydetyt.count(kaikki_loput[tt]) == 0) {
@@ -136,7 +135,7 @@ class Infot {
     std::vector <int> houkuttelevuudet;
     std::set<Manner> mantereet;
     int aikaa_viepia_tehty;
-    // Funktioita datan pyörittely**yn
+    // Funktioita datan pyörittelyyn
     std::vector<int> jrj(std::vector<int> ehdokkaat, std::vector<int> ehdokkaiden_arvot);
     std::vector<int> omistukset(std::vector<int> ehdokkaat, int kenen);
     std::vector<int> laske_pohjahoukuttelevuudet(std::vector<int> ehdokkaat);
@@ -146,6 +145,9 @@ class Infot {
     std::vector<int> reitti_omalta_alueelta(int id);
     int etsi_lahin_vihu(int id);
     int etsi_lahin_naapuri(int alkaen_mista, int kenen);
+    void omalta_alueelta_ohjaaminen(int id);
+    std::set<int> etsi_vihut(int id);
+    void lisaa_ohjaus(int id);
   public:
     // Konstruktorit
     Infot();
@@ -262,6 +264,7 @@ std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
             tulos[ehd[tt]] = tulos[ehd[tt]] + alttiushaitta;
             if (!altisko(ehd[tt])) {
                 tulos[ehd[tt]] = 0;
+                std::cerr << ehd[tt] << " nollattu\n";
             }
         }
     }
@@ -339,8 +342,10 @@ std::vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
     ehdokkaat = jrj(ehdokkaat, houkuttelevuudet);
     while (ehdokkaat.size()>0 && houkuttelevuudet[ehdokkaat[ehdokkaat.size()-1]]==0)
         ehdokkaat.pop_back();
-    if (ehdokkaat.size() == 0) 
-        return(reitti_omalta_alueelta(id));
+    if (ehdokkaat.size() == 0) {
+        omalta_alueelta_ohjaaminen(id);
+        return(suunnat(id, 1));
+    }
     for (int tt = 0; tt < moneenko_suuntaan; ++tt) {
         tulos.push_back(ehdokkaat[tt]);
         if (vihut[ehdokkaat[tt]]==0) houkuttelevuudet[ehdokkaat[tt]] /= 2; // Jonoon lisätyn liikkeen johonkin ruutuun tulee heikentää sen houkuttelevuutta.
@@ -422,6 +427,69 @@ int Infot::etsi_lahin_naapuri(int alkaen_mista, int id) {
         std::cerr << "Varoitus: etsittyä vihua ei löytynyt." << std::endl;
     return(tulos);
 }
+void Infot::omalta_alueelta_ohjaaminen(int id) {
+    std::set<int> kohteet = etsi_vihut(id);    
+    for (std::set<int>::iterator kohde_it = kohteet.begin(); kohde_it != kohteet.end(); ++kohde_it) {
+        lisaa_ohjaus(*kohde_it);
+    }
+}
+std::set<int> Infot::etsi_vihut(int id) {
+    std::set<int>  tulos;
+    std::set<int> jo_loydetyt, edelliset, uusimmat;
+    jo_loydetyt.insert(id);
+    edelliset.insert(id);
+    while (edelliset.size() > 0) {
+        for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
+            for (int ss = 0; ss < alut.size(); ++ss) {
+                if (alut[ss] == *valietappi && jo_loydetyt.count(loput[ss]) == 0) {
+                    uusimmat.insert(loput[ss]);
+                    jo_loydetyt.insert(loput[ss]);
+                }
+                if (loput[ss] == *valietappi && jo_loydetyt.count(alut[ss]) == 0) {
+                    uusimmat.insert(alut[ss]);
+                    jo_loydetyt.insert(loput[ss]);
+                }
+            }
+        }
+        for (std::set<int>::iterator uusi = uusimmat.begin(); uusi != uusimmat.end(); ++uusi) {
+            if (omistajat[*uusi] != myId || vihut[*uusi]>0) {
+                tulos.insert( *uusi);
+            }
+        }
+        edelliset = uusimmat;
+        uusimmat.clear();
+    }
+    if (tulos.size() == 0)
+        std::cerr << "Varoitus: etsittyä vihua ei löytynyt." << std::endl;
+    return(tulos);
+}
+void Infot::lisaa_ohjaus(int id) {
+    std::set<int> jo_loydetyt, edelliset, uusimmat;
+    jo_loydetyt.insert(id);
+    edelliset.insert(id);
+    int ohjaus = 18;
+    while (edelliset.size() > 0 && ohjaus >0) {
+        for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
+            for (int tt = 0; tt < alut.size(); ++tt) {
+                if (alut[tt] == *valietappi && jo_loydetyt.count(loput[tt]) == 0) {
+                    uusimmat.insert(loput[tt]);
+                    jo_loydetyt.insert(loput[tt]);
+                }
+                if (loput[tt] == *valietappi && jo_loydetyt.count(alut[tt]) == 0) {
+                    uusimmat.insert(alut[tt]);
+                    jo_loydetyt.insert(alut[tt]);
+                }
+            }
+        }
+        for (std::set<int>::iterator uusi = uusimmat.begin(); uusi != uusimmat.end(); ++uusi)
+            if (houkuttelevuudet[*uusi] < ohjaus)
+                houkuttelevuudet[*uusi] = ohjaus;
+        edelliset = uusimmat;
+        uusimmat.clear();
+        --ohjaus;
+        }
+}
+
 std::vector<int> Infot::naapurit(int id) {
     std::vector<int> tulos;
     for (int tt = 0; tt < alut.size(); ++tt) {
@@ -490,20 +558,7 @@ bool Infot::valmis_mannerko(Manner manner) {
     }
     return(ei_omia || ei_vihuja);
 }
-/*
-bool Infot::kaikille_valmis_mannerko(Manner manner) {
-    std::set<int> alueet = manner.alueet();
-    std::set<int>::iterator it = alueet.begin();
-    int ekan_omistaja = omistajat[*it];
-    bool tulos = (ekan_omistaja == -1) ? false : true;
-    while (it != alueet.end() && tulos == true) {
-        if (omistajat[*it] != ekan_omistaja || vihut[*it]>0)
-            tulos = false;
-        ++it;
-    }
-    return(tulos);
-}
-*/
+
 
 /*************** vektoripari **************/
 /******************************************/
@@ -644,8 +699,6 @@ void Mekaniikka::rautaa_rajalle(Vektoripari & ost) {
         info.maksa(kuhunkin, raja[apu]);
         ++apu;
     }
-if (info.varaa())
-    std::cerr << "Rautaa-ostojen jälkeen varaa jäi vielä " << info.varaa() << std::endl;
 }
 void Mekaniikka::tee_ostot(Vektoripari ost) {
     std::vector<int> ost_maarat = ost.lkmt;
@@ -666,26 +719,21 @@ void Mekaniikka::tee_ostot(Vektoripari ost) {
 void Mekaniikka::ekat_ostot(Vektoripari & ost) {
 //    int kuinka_monta_reserviin = (rand() % 6) * (info.pelaajia() - 2); // Satunnainen: 
     int kuinka_monta_reserviin = (rand() % 6); // Yläpainotteinen: 
-std::cerr << "Reserviin jätetään " << kuinka_monta_reserviin << std::endl;
     while ((rand()%12) > kuinka_monta_reserviin  &&  kuinka_monta_reserviin < 10)
         ++kuinka_monta_reserviin;
     kuinka_monta_reserviin *= (info.pelaajia() - 2);
-std::cerr << "Reserviin jätetään " << kuinka_monta_reserviin << std::endl;
 
 //    int kuinka_monta_reserviin = ( (rand() % 2) + (rand() % 2) + (rand() % 2) + (rand() % 3)) * (info.pelaajia() - 2); // Keskelle painottunut: GL128
     std::vector<int> tyhj = info.parhaat_alueet(-1);
     int tt = 0;
     int r = 1 + rand() % 4;
-std::cerr << "Reserviin jätetään " << kuinka_monta_reserviin << std::endl;
     while (tt < tyhj.size() && tt < r && info.varaa() > kuinka_monta_reserviin) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
         int parhaaseen = rand() % 4; // Tämä ja -1 - 3: 122, 4: 107
-    while ((rand() % 2))
+    while (rand() % 2)
         --parhaaseen; // Eli alapainotteisesti. 
-if (parhaaseen == 3) std::cerr << "Nyt meni 3 samaan!" << std::endl;
-        parhaaseen = parhaaseen;// + info.pelaajia(); // Tämän kanssa 318 / 762, poiston jälkeen 212 / 762!
-        parhaaseen = (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa();
-        ost.lisaa_idlle(tyhj[tt], parhaaseen );
-        info.maksa(parhaaseen, tyhj[tt]);
+    parhaaseen = std::min(parhaaseen, info.varaa());
+    ost.lisaa_idlle(tyhj[tt], parhaaseen );
+    info.maksa(parhaaseen, tyhj[tt]);
         ++tt;
     }
     while (tt < tyhj.size() && info.varaa() > kuinka_monta_reserviin) {
@@ -699,7 +747,8 @@ if (parhaaseen == 3) std::cerr << "Nyt meni 3 samaan!" << std::endl;
 /************************************/
 
 int main() {
-      srand(time(NULL));
+//      srand(time(NULL));
+      srand(2018);
       int playerCount; // the amount of players (2 to 4)
       int myId; // my player ID (0, 1, 2 or 3)
       int zoneCount; // the amount of zones on the map
@@ -708,13 +757,13 @@ int main() {
       std::cin.ignore();
       
       // Omat muuttujat
-      std::vector < int > idt(zoneCount);
-      std::vector < int > platinatuotot(zoneCount);
-      std::vector < int > loput(linkCount);
-      std::vector < int > alut(linkCount);
-      std::vector < int > omistajat(zoneCount);
-      std::vector < int > vihut(zoneCount);
-      std::vector < int > omat(zoneCount);
+      std::vector <int> idt(zoneCount);
+      std::vector <int> platinatuotot(zoneCount);
+      std::vector <int> loput(linkCount);
+      std::vector <int> alut(linkCount);
+      std::vector <int> omistajat(zoneCount);
+      std::vector <int> vihut(zoneCount);
+      std::vector <int> omat(zoneCount);
 
       for (int i = 0; i < zoneCount; i++) {
          //        int zoneId; // this zone's ID (between 0 and zoneCount-1)
