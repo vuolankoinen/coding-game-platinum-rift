@@ -1,9 +1,10 @@
-#include <iostream> 
-#include <vector> 
-#include <set> 
-#include <map> 
-#include <math.h> 
+#include <iostream>
+#include <vector>
+#include <set>
+#include <map>
+#include <math.h>
 #include <algorithm>
+#include <time.h>
 
 /*                                                                                                                                                     
 Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.
@@ -152,7 +153,7 @@ class Infot {
             std::vector<int> peliruudut, std::vector<int> platinatuotot,
             std::vector<int> alkupisteet, std::vector<int> loppupisteet);
     // API-funktiot
-    void kierroksen_alku(std::vector < int > omistajat, std::vector < int > vihut, std::vector < int > omat, int platinaa);
+    void kierroksen_alku(std::vector < int > omistajat, std::vector < int > vihut, std::vector < int > omat, int platinaa, std::set<int> pelaajat);
     bool eka_kierrosko() {return(vro==1);}
     int pelaajia() {return(playerCount);}
     std::vector<int> parhaat_alueet(int kenen); // -1: tuottavat alueet, 0: alueet, joihin voi sijoittaa joukkoja
@@ -163,7 +164,7 @@ class Infot {
     int maksa(int paljonko, int mihin);
     std::vector<int> naapurit(int id);
     int houkutus(int id) {return(houkuttelevuudet[id]);}
-    void poista_valmiit_mantereet();
+    std::set<Manner> poista_valmiit_mantereet();
     bool uhattunako(int id);
     void lisaa_mannerten_painoarvot();
 };
@@ -195,7 +196,7 @@ Infot::Infot(int pelaajia, int id, std::vector<int> it, std::vector<int> tuotot,
     mantereet = uusi_kokoelma;
 }
 
-void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vector<int> o, int platinaa) {
+void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vector<int> o, int platinaa, std::set<int> pelaajia_viela) {
     ++vro; // Tämä oli tippunut - ilman tätä 112, tämän kanssa 1
     aikaa_viepia_tehty = 0;
     omistajat = om;
@@ -204,11 +205,13 @@ void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vect
     platinum = platinaa;
     std::vector<int> pohjaht = laske_pohjahoukuttelevuudet(idt);
     std::vector<int> jo(platinatuotot.size(), 0);
-    poista_valmiit_mantereet();
+    mantereet = poista_valmiit_mantereet();
     for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
         jo = laske_verkostohoukuttelevuudet(*it, jo, pohjaht);
     }
     houkuttelevuudet = jo;
+    if (vro>2)
+        playerCount = pelaajia_viela.size();
 }
 std::vector<int> Infot::parhaat_alueet(int kenen) {
     if (kenen == 0)
@@ -347,7 +350,7 @@ std::vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
 std::vector<int> Infot::reitti_omalta_alueelta(int id) {
     std::vector<int> uus;
     std::vector<int> ehdokkaat = naapurit(id);
-    if (++aikaa_viepia_tehty > 4) {
+    if (++aikaa_viepia_tehty > 3) {
         uus.push_back(ehdokkaat[0]);
         return(uus);
     }
@@ -448,7 +451,8 @@ bool Infot::altisko(int id) {
             tulos = true;
     return(tulos);
 }
-void Infot::poista_valmiit_mantereet() {
+std::set<Manner> Infot::poista_valmiit_mantereet() {
+    std::set<Manner> tulos;
     for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
         if (valmis_mannerko(*it)) {
             std::set<int> poistettavat = (*it).alueet();
@@ -465,8 +469,11 @@ void Infot::poista_valmiit_mantereet() {
             idt = karsitut_idt;
             alut = karsitut_alut;
             loput = karsitut_loput;
+        } else {
+            tulos.insert(*it);
         }
     }
+    return(tulos);
 }
 bool Infot::valmis_mannerko(Manner manner) {
     std::set<int> alueet = manner.alueet();
@@ -637,6 +644,8 @@ void Mekaniikka::rautaa_rajalle(Vektoripari & ost) {
         info.maksa(kuhunkin, raja[apu]);
         ++apu;
     }
+if (info.varaa())
+    std::cerr << "Rautaa-ostojen jälkeen varaa jäi vielä " << info.varaa() << std::endl;
 }
 void Mekaniikka::tee_ostot(Vektoripari ost) {
     std::vector<int> ost_maarat = ost.lkmt;
@@ -657,18 +666,22 @@ void Mekaniikka::tee_ostot(Vektoripari ost) {
 void Mekaniikka::ekat_ostot(Vektoripari & ost) {
 //    int kuinka_monta_reserviin = (rand() % 6) * (info.pelaajia() - 2); // Satunnainen: 
     int kuinka_monta_reserviin = (rand() % 6); // Yläpainotteinen: 
+std::cerr << "Reserviin jätetään " << kuinka_monta_reserviin << std::endl;
     while ((rand()%12) > kuinka_monta_reserviin  &&  kuinka_monta_reserviin < 10)
         ++kuinka_monta_reserviin;
     kuinka_monta_reserviin *= (info.pelaajia() - 2);
+std::cerr << "Reserviin jätetään " << kuinka_monta_reserviin << std::endl;
 
 //    int kuinka_monta_reserviin = ( (rand() % 2) + (rand() % 2) + (rand() % 2) + (rand() % 3)) * (info.pelaajia() - 2); // Keskelle painottunut: GL128
     std::vector<int> tyhj = info.parhaat_alueet(-1);
     int tt = 0;
     int r = 1 + rand() % 4;
+std::cerr << "Reserviin jätetään " << kuinka_monta_reserviin << std::endl;
     while (tt < tyhj.size() && tt < r && info.varaa() > kuinka_monta_reserviin) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
         int parhaaseen = rand() % 4; // Tämä ja -1 - 3: 122, 4: 107
-        while ((rand() % 2))
-            --parhaaseen; // Eli alapainotteisesti.
+    while ((rand() % 2))
+        --parhaaseen; // Eli alapainotteisesti. 
+if (parhaaseen == 3) std::cerr << "Nyt meni 3 samaan!" << std::endl;
         parhaaseen = parhaaseen;// + info.pelaajia(); // Tämän kanssa 318 / 762, poiston jälkeen 212 / 762!
         parhaaseen = (parhaaseen <= info.varaa()) ? parhaaseen:info.varaa();
         ost.lisaa_idlle(tyhj[tt], parhaaseen );
@@ -686,6 +699,7 @@ void Mekaniikka::ekat_ostot(Vektoripari & ost) {
 /************************************/
 
 int main() {
+      srand(time(NULL));
       int playerCount; // the amount of players (2 to 4)
       int myId; // my player ID (0, 1, 2 or 3)
       int zoneCount; // the amount of zones on the map
@@ -717,6 +731,7 @@ int main() {
       
       // game loop
     while (1) {
+        std::set<int> pelaajia_mukana;
         int platinum; // my available Platinum
         std::cin >> platinum;
         std::cin.ignore();
@@ -730,6 +745,7 @@ int main() {
             std::cin >> zId >> ownerId >> podsP0 >> podsP1 >> podsP2 >> podsP3;
             std::cin.ignore();
             omistajat[zId] = ownerId;
+            pelaajia_mukana.insert(ownerId);
             if (myId < 2) {
                     omat[zId] = (myId == 0) ? podsP0 : podsP1;
                 } else {
@@ -737,7 +753,8 @@ int main() {
                 }
             vihut[zId] = podsP1 + podsP2 + podsP3 + podsP0 - omat[zId];
         }
-        infot.kierroksen_alku(omistajat, vihut, omat, platinum/20);
+        pelaajia_mukana.erase(-1);
+        infot.kierroksen_alku(omistajat, vihut, omat, platinum/20, pelaajia_mukana);
         Mekaniikka mek(infot);
         mek.liikkeet();
         mek.ostot();
