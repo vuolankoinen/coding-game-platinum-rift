@@ -29,6 +29,5 @@ Kehitysajatuksia:
 - Sillanpäät sulkeutumassa?
 - Huom. osa näistä parannuksista edellyttää, että mantereiden sulkemisen yhteydessä kirjataan sen alueet ja tuotot pysyvästi mantereen voittaneelle pelaajalle.
 - Vain yhden tyhjän ruudun altistamien rajojen tunnistaminen (jolloin voi siis huoletta edetä)
-- Jonkinlainen gradienttipohjainen omalta alueelta pois hakeutuminen, jotta alueelta poistuminen ei vaadi liian aikaa vievää laskentaa
-- Vaihtoehtoisesti yksittäisten kohteiden osoittaminen tietyille yksiköille omalla alueella (ja miksei laajemminkin)
+- Yksittäisten kohteiden osoittaminen tietyille yksiköille omalla alueella (ja miksei laajemminkin)
 - Jumahtaneiden tilanteiden tunnistaminen ja niihin reaktiona muurinmurtajaoperaatiot

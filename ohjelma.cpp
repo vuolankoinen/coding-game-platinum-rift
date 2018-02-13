@@ -6,7 +6,7 @@
 #include <algorithm> 
 #include <time.h> 
 
-/*
+/*                                                                                                                                                     
 Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.
 */
 
@@ -336,9 +336,7 @@ std::vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
     std::vector<int> tulos;
     std::vector<int> ehdokkaat = naapurit(id);
     ehdokkaat.push_back(id); // Myös tämänhetkinen ruutu (eli liikkumattomuus) on otettava huomioon vaihtoehdoissa.
-    while (ehdokkaat.size() < moneenko_suuntaan)
-        ehdokkaat.push_back(id);
-    reverse(ehdokkaat.begin(), ehdokkaat.end()); // Suositaan paikallaan pysymistä ärsyttävyyden minimoimiseksi.
+    reverse(ehdokkaat.begin(), ehdokkaat.end()); // Suositaan paikallaan pysymistä ärsyttävyyden minimoimiseksi, joten siirretään nykyinen alkuun.
     ehdokkaat = jrj(ehdokkaat, houkuttelevuudet);
     while (ehdokkaat.size()>0 && houkuttelevuudet[ehdokkaat[ehdokkaat.size()-1]]==0)
         ehdokkaat.pop_back();
@@ -346,6 +344,9 @@ std::vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
         omalta_alueelta_ohjaaminen(id);
         return(suunnat(id, 1));
     }
+    while (ehdokkaat.size()>1 && houkuttelevuudet[ehdokkaat[ehdokkaat.size()-1]]<20)
+        ehdokkaat.pop_back();
+    moneenko_suuntaan = std::min((int)ehdokkaat.size(), moneenko_suuntaan);
     for (int tt = 0; tt < moneenko_suuntaan; ++tt) {
         tulos.push_back(ehdokkaat[tt]);
         if (vihut[ehdokkaat[tt]]==0) houkuttelevuudet[ehdokkaat[tt]] /= 2; // Jonoon lisätyn liikkeen johonkin ruutuun tulee heikentää sen houkuttelevuutta.
