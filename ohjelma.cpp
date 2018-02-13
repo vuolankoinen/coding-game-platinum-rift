@@ -31,6 +31,9 @@ struct Manner {
     // funktiot
     std::set<int> alueet() const {return(idt);}
     int matka(int alkuId, int loppuId);
+    std::set<int> nollan_arvoiset(std::vector<int> houk);
+    std::set<int> muiden(std::vector<int> omis, int oma);
+  private:
     void laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, std::vector<int> alut, std::vector<int> loput, int alueita);
 };
 std::set<int> Manner::alusta(int id, std::vector<int> kaikki_alut, std::vector<int> kaikki_loput, std::vector<int> tuotot) {
@@ -105,6 +108,20 @@ void  Manner::laske_dt(std::map<std::pair<int, int>, int> & etaisyydet, int id, 
         }
         }
 }
+std::set<int> Manner::nollan_arvoiset(std::vector<int> houk) {
+    std::set<int> tulos;
+    for (std::set<int>::iterator it=idt.begin(); it!=idt.end(); ++it)
+        if (houk[*it] == 0)
+            tulos.insert(*it);
+    return(tulos);    
+}
+std::set<int> Manner::muiden(std::vector<int> omis, int oma) {
+    std::set<int> tulos;
+    for (std::set<int>::iterator it=idt.begin(); it!=idt.end(); ++it)
+        if (omis[*it] != oma)
+            tulos.insert(*it);
+    return(tulos);
+}
 
 
 bool operator < ( Manner const &o, Manner const &v) {
@@ -134,7 +151,6 @@ class Infot {
     // Talteen laskettavat tiedot
     std::vector <int> houkuttelevuudet;
     std::set<Manner> mantereet;
-    int aikaa_viepia_tehty;
     // Funktioita datan pyörittelyyn
     std::vector<int> jrj(std::vector<int> ehdokkaat, std::vector<int> ehdokkaiden_arvot);
     std::vector<int> omistukset(std::vector<int> ehdokkaat, int kenen);
@@ -142,12 +158,7 @@ class Infot {
     std::vector<int> laske_verkostohoukuttelevuudet(Manner manner, std::vector<int> jo_olemassa, std::vector<int> pohjahoukuttelevuudet);
     bool altisko(int id);
     bool valmis_mannerko(Manner manner);
-    std::vector<int> reitti_omalta_alueelta(int id);
-    int etsi_lahin_vihu(int id);
-    int etsi_lahin_naapuri(int alkaen_mista, int kenen);
     void omalta_alueelta_ohjaaminen(int id);
-    std::set<int> etsi_vihut(int id);
-    void lisaa_ohjaus(int id);
   public:
     // Konstruktorit
     Infot();
@@ -169,6 +180,7 @@ class Infot {
     std::set<Manner> poista_valmiit_mantereet();
     bool uhattunako(int id);
     void lisaa_mannerten_painoarvot();
+    Manner mika_manner(int id);
 };
 
 Infot::Infot() {}
@@ -200,7 +212,6 @@ Infot::Infot(int pelaajia, int id, std::vector<int> it, std::vector<int> tuotot,
 
 void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vector<int> o, int platinaa, std::set<int> pelaajia_viela) {
     ++vro; // Tämä oli tippunut - ilman tätä 112, tämän kanssa 1
-    aikaa_viepia_tehty = 0;
     omistajat = om;
     vihut = vih;
     omat = o;
@@ -264,7 +275,6 @@ std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
             tulos[ehd[tt]] = tulos[ehd[tt]] + alttiushaitta;
             if (!altisko(ehd[tt])) {
                 tulos[ehd[tt]] = 0;
-                std::cerr << ehd[tt] << " nollattu\n";
             }
         }
     }
@@ -353,144 +363,24 @@ std::vector<int> Infot::suunnat(int id, int moneenko_suuntaan) {
     }
     return(tulos);
 }
-std::vector<int> Infot::reitti_omalta_alueelta(int id) {
-    std::vector<int> uus;
-    std::vector<int> ehdokkaat = naapurit(id);
-    if (++aikaa_viepia_tehty > 3) {
-        uus.push_back(ehdokkaat[0]);
-        return(uus);
-    }
-    int tulos(id);
-    int kohde = etsi_lahin_vihu(id);
-    bool kesken = true;
-    while (kesken) {
-        // Tarkistetaan, tuliko valmista
-        for (std::vector<int>::iterator it = ehdokkaat.begin(); it != ehdokkaat.end(); ++it) {
-            if (kohde == *it) {
-                tulos = *it;
-                kesken = false;
-            }
-        }
-        // Etsitään seuraavaksi lähin kohde
-        kohde = etsi_lahin_naapuri(id, kohde);
-    }
-    uus.push_back(tulos);
-    return(uus);
-}
-int Infot::etsi_lahin_vihu(int id) {
-    int tulos(id);
-    std::set<int> jo_loydetyt, edelliset, uusimmat;
-    jo_loydetyt.insert(id);
-    edelliset.insert(id);
-    while (edelliset.size() > 0 && tulos == id) {
-        for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
-            for (int ss = 0; ss < alut.size(); ++ss) {
-                if (alut[ss] == *valietappi && jo_loydetyt.count(loput[ss]) == 0)
-                    uusimmat.insert(loput[ss]);
-                if (loput[ss] == *valietappi && jo_loydetyt.count(alut[ss]) == 0)
-                    uusimmat.insert(alut[ss]);
-            }
-        }
-        for (std::set<int>::iterator uusi = uusimmat.begin(); uusi != uusimmat.end(); ++uusi) {
-            if (omistajat[*uusi] != myId || vihut[*uusi]>0)
-                tulos = *uusi;
-        }
-        edelliset = uusimmat;
-        uusimmat.clear();
-    }
-    if (tulos == id)
-        std::cerr << "Varoitus: etsittyä vihua ei löytynyt." << std::endl;
-    return(tulos);
-}
-int Infot::etsi_lahin_naapuri(int alkaen_mista, int id) {
-    std::vector<int> kohteet = naapurit(id);
-    int tulos(alkaen_mista);
-    std::set<int> jo_loydetyt, edelliset, uusimmat;
-    jo_loydetyt.insert(alkaen_mista);
-    edelliset.insert(alkaen_mista);
-    while (edelliset.size() > 0 && tulos == alkaen_mista) {
-        for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
-            for (int ss = 0; ss < alut.size(); ++ss) {
-                if (alut[ss] == *valietappi && jo_loydetyt.count(loput[ss]) == 0)
-                    uusimmat.insert(loput[ss]);
-                if (loput[ss] == *valietappi && jo_loydetyt.count(alut[ss]) == 0)
-                    uusimmat.insert(alut[ss]);
-            }
-        }
-        for (std::set<int>::iterator uusi = uusimmat.begin(); uusi != uusimmat.end(); ++uusi)
-            for (int kk = 0; kk < kohteet.size(); ++kk)
-                if (kohteet[kk] == *uusi)
-                    tulos = *uusi;
-        edelliset = uusimmat;
-        uusimmat.clear();
-    }
-    if (tulos == alkaen_mista)
-        std::cerr << "Varoitus: etsittyä vihua ei löytynyt." << std::endl;
-    return(tulos);
-}
 void Infot::omalta_alueelta_ohjaaminen(int id) {
-    std::set<int> kohteet = etsi_vihut(id);    
-    for (std::set<int>::iterator kohde_it = kohteet.begin(); kohde_it != kohteet.end(); ++kohde_it) {
-        lisaa_ohjaus(*kohde_it);
+    Manner mann = mika_manner(id);
+    std::set<int> omat = mann.nollan_arvoiset(houkuttelevuudet);
+    std::set<int> kohteet = mann.muiden(omistajat, myId);
+    while (kohteet.size() > 0) {
+        int kohde = *(kohteet.begin());
+        for (std::set<int>::iterator it = omat.begin(); it != omat.end(); ++it) {
+            int tarjolla = 19 - mann.matka(kohde, *it);
+            if (houkuttelevuudet[*it] < tarjolla)
+                houkuttelevuudet[*it] = tarjolla;
+        }
+        std::set<int> seuraavat_kohteet = kohteet;
+        for (std::set<int>::iterator it = kohteet.begin(); it != kohteet.end(); ++it)
+            if (mann.matka(kohde, *it) < 3)
+                seuraavat_kohteet.erase(*it);
+        kohteet = seuraavat_kohteet;
     }
 }
-std::set<int> Infot::etsi_vihut(int id) {
-    std::set<int>  tulos;
-    std::set<int> jo_loydetyt, edelliset, uusimmat;
-    jo_loydetyt.insert(id);
-    edelliset.insert(id);
-    while (edelliset.size() > 0) {
-        for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
-            for (int ss = 0; ss < alut.size(); ++ss) {
-                if (alut[ss] == *valietappi && jo_loydetyt.count(loput[ss]) == 0) {
-                    uusimmat.insert(loput[ss]);
-                    jo_loydetyt.insert(loput[ss]);
-                }
-                if (loput[ss] == *valietappi && jo_loydetyt.count(alut[ss]) == 0) {
-                    uusimmat.insert(alut[ss]);
-                    jo_loydetyt.insert(loput[ss]);
-                }
-            }
-        }
-        for (std::set<int>::iterator uusi = uusimmat.begin(); uusi != uusimmat.end(); ++uusi) {
-            if (omistajat[*uusi] != myId || vihut[*uusi]>0) {
-                tulos.insert( *uusi);
-            }
-        }
-        edelliset = uusimmat;
-        uusimmat.clear();
-    }
-    if (tulos.size() == 0)
-        std::cerr << "Varoitus: etsittyä vihua ei löytynyt." << std::endl;
-    return(tulos);
-}
-void Infot::lisaa_ohjaus(int id) {
-    std::set<int> jo_loydetyt, edelliset, uusimmat;
-    jo_loydetyt.insert(id);
-    edelliset.insert(id);
-    int ohjaus = 18;
-    while (edelliset.size() > 0 && ohjaus >0) {
-        for (std::set<int>::iterator valietappi = edelliset.begin(); valietappi != edelliset.end(); ++valietappi) {
-            for (int tt = 0; tt < alut.size(); ++tt) {
-                if (alut[tt] == *valietappi && jo_loydetyt.count(loput[tt]) == 0) {
-                    uusimmat.insert(loput[tt]);
-                    jo_loydetyt.insert(loput[tt]);
-                }
-                if (loput[tt] == *valietappi && jo_loydetyt.count(alut[tt]) == 0) {
-                    uusimmat.insert(alut[tt]);
-                    jo_loydetyt.insert(alut[tt]);
-                }
-            }
-        }
-        for (std::set<int>::iterator uusi = uusimmat.begin(); uusi != uusimmat.end(); ++uusi)
-            if (houkuttelevuudet[*uusi] < ohjaus)
-                houkuttelevuudet[*uusi] = ohjaus;
-        edelliset = uusimmat;
-        uusimmat.clear();
-        --ohjaus;
-        }
-}
-
 std::vector<int> Infot::naapurit(int id) {
     std::vector<int> tulos;
     for (int tt = 0; tt < alut.size(); ++tt) {
@@ -559,6 +449,16 @@ bool Infot::valmis_mannerko(Manner manner) {
     }
     return(ei_omia || ei_vihuja);
 }
+Manner Infot::mika_manner(int id) {
+    for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
+        if ( (*it).alueet().count(id) > 0 )
+            return(*it);
+    }
+    std::cerr << "Virhe! " << id << " ei kuulu mihinkään mantereeseen!" << std::endl;
+    Manner tulos;
+    return(tulos);
+}
+
 
 
 /*************** vektoripari **************/
