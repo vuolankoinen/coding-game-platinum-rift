@@ -241,7 +241,8 @@ std::vector<int> Infot::parhaat_alueet(int kenen) {
                 apu.push_back(tulos[tt]);
         tulos = apu;
     }
-    if (kenen == -1) { // Poistetaan tyhjistä uhatut GL 130 -> 106
+    // Kokeilussa:
+    if (kenen == -1) { // Poistetaan tyhjistä uhatut
         std::vector<int> apu;
         for (int tt = 0; tt < tulos.size(); ++tt)
             if (!uhattunako(tulos[tt]))
@@ -258,14 +259,16 @@ std::vector<int> Infot::omistukset(std::vector<int> ehdokkaat, int kenen) {
     return(tulos);
 }
 std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
-    int alttiushaitta = 60;  // 25: 108/124, 35: 121/124, 50: 105/128, 150: 123/124
+    int hyokkaavyys = 120;
+    int alttiush_minimi = 90;
     std::vector<int> tulos(platinatuotot.size());
     for (int tt = 0; tt < ehd.size(); ++tt) {
         if (omistajat[ehd[tt]] != myId) {
             if (omistajat[ehd[tt]] == -1) {
-                tulos[ehd[tt]] = 200 * platinatuotot[ehd[tt]] + alttiushaitta * (playerCount-1);
+                tulos[ehd[tt]] = 200 * platinatuotot[ehd[tt]] + hyokkaavyys;// * (playerCount-1);
             } else {
-                tulos[ehd[tt]] = 120 * platinatuotot[ehd[tt]] + alttiushaitta;
+                tulos[ehd[tt]] = 120 * platinatuotot[ehd[tt]] + hyokkaavyys;
+//                tulos[ehd[tt]] = (60 + 60 * (4 - playerCount))  * platinatuotot[ehd[tt]] + hyokkaavyys;
                 if (!uhattunako(ehd[tt])) {
                     tulos[ehd[tt]] = 2 * tulos[ehd[tt]];
                 }
@@ -279,7 +282,7 @@ std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
             if (uhattunako(ehd[tt])) {
                 tulos[ehd[tt]] = tulos[ehd[tt]] * 4 + 100;
             }
-            tulos[ehd[tt]] = tulos[ehd[tt]] + alttiushaitta;
+//            tulos[ehd[tt]] = tulos[ehd[tt]] + hyokkaavyys;
             if (!altisko(ehd[tt])) {
                 tulos[ehd[tt]] = 0;
             }
@@ -405,6 +408,17 @@ int Infot::uhattunako(int id) {
         tulos += vihut[naaps[tt]];
     return(tulos);
 }
+/*bool Infot::uhattunako(int id) {
+    bool tulos;
+    tulos = false;
+    std::vector<int> naaps = naapurit(id);
+    for (int tt = 0; tt < naaps.size(); ++tt)
+        if (vihut[naaps[tt]]>omat[tt])
+            tulos = true;
+    if (vihut[id] > 0)
+        tulos = true;
+    return(tulos);
+}*/
 bool Infot::altisko(int id) {
     bool tulos = false;
     std::vector<int> naaps = naapurit(id);
