@@ -6,7 +6,7 @@
 #include <algorithm> 
 #include <time.h> 
 
-/*                                                                                                                                                     
+/*
 Note that the code is all in one file, because it needs to be written in a single window in the codingame-IDE.
 */
 
@@ -178,7 +178,7 @@ class Infot {
     std::vector<int> naapurit(int id);
     int houkutus(int id) {return(houkuttelevuudet[id]);}
     std::set<Manner> poista_valmiit_mantereet();
-    bool uhattunako(int id);
+    int uhattunako(int id);
     void lisaa_mannerten_painoarvot();
     Manner mika_manner(int id);
 };
@@ -238,6 +238,13 @@ std::vector<int> Infot::parhaat_alueet(int kenen) {
         std::vector<int> apu;
         for (int tt = 0; tt < tulos.size(); ++tt)
             if (platinatuotot[tulos[tt]]>1)
+                apu.push_back(tulos[tt]);
+        tulos = apu;
+    }
+    if (kenen == -1) { // Poistetaan tyhjistä uhatut GL 130 -> 106
+        std::vector<int> apu;
+        for (int tt = 0; tt < tulos.size(); ++tt)
+            if (!uhattunako(tulos[tt]))
                 apu.push_back(tulos[tt]);
         tulos = apu;
     }
@@ -391,15 +398,11 @@ std::vector<int> Infot::naapurit(int id) {
     }
     return(tulos);        
 }
-bool Infot::uhattunako(int id) {
-    bool tulos;
-    tulos = false;
+int Infot::uhattunako(int id) {
+    int tulos = vihut[id];
     std::vector<int> naaps = naapurit(id);
     for (int tt = 0; tt < naaps.size(); ++tt)
-        if (vihut[naaps[tt]]>omat[tt])
-            tulos = true;
-    if (vihut[id] > 0)
-        tulos = true;
+        tulos += vihut[naaps[tt]];
     return(tulos);
 }
 bool Infot::altisko(int id) {
@@ -521,8 +524,9 @@ std::vector<int> Mekaniikka::valmistele_liikkeet() {
     std::vector<int> tulos;
     std::vector <int> alueet = info.joukkoja(0); // Omia joukkoja sisältävät ruudut
     for (int tt = 0; tt < alueet.size(); ++tt) {
-        // Yli neljän ryppäitä kannattaa hajottaa
-        int joukkokoko = (info.uhattunako(alueet[tt])) ? 4:1;
+        int joukkokoko = info.uhattunako(alueet[tt]);
+        joukkokoko = std::max(joukkokoko, 1);
+        joukkokoko = std::min(joukkokoko, 4); // Yli neljän ryppäitä kannattaa hajottaa.
         int moneenko_suuntaan = info.montako_omaa(alueet[tt]) / joukkokoko + 1;
         std::vector<int> suun = info.suunnat(alueet[tt], moneenko_suuntaan);
         moneenko_suuntaan = suun.size();
