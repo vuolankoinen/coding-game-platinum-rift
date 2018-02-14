@@ -31,3 +31,8 @@ Kehitysajatuksia:
 - Vain yhden tyhjän ruudun altistamien rajojen tunnistaminen (jolloin voi siis huoletta edetä)
 - Yksittäisten kohteiden osoittaminen tietyille yksiköille omalla alueella (ja miksei laajemminkin)
 - Jumahtaneiden tilanteiden tunnistaminen ja niihin reaktiona muurinmurtajaoperaatiot
+- Erilliset houkuttelevuudet liikkeille ja ostoille.
+- Resurssikohdennusjärjestelmä, ehkä peräti oma olio kullekin yksikölle
+- Jos alue (kahden etäisyydellä) on tyhjä, yksikön tiputtamista pitäisi seurata alueen houkuttelevuuden tiputtaminen
+  - Edellyttää ostojen tekemisen muuttamista vaiheittaiseksi, yksikkö yksiköltä, ja päivittää houkuttelevuuksia välissä
+  - Yksiköiden sijainnit liikkeiden jäljiltä olisi paikallaan päivittää myös ennen ostoja

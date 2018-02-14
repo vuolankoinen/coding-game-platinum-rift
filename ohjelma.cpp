@@ -181,6 +181,8 @@ class Infot {
     int uhattunako(int id);
     void lisaa_mannerten_painoarvot();
     Manner mika_manner(int id);
+    std::vector<int> tuotot() {return(platinatuotot);}
+
 };
 
 Infot::Infot() {}
@@ -241,7 +243,6 @@ std::vector<int> Infot::parhaat_alueet(int kenen) {
                 apu.push_back(tulos[tt]);
         tulos = apu;
     }
-    // Kokeilussa:
     if (kenen == -1) { // Poistetaan tyhjistä uhatut
         std::vector<int> apu;
         for (int tt = 0; tt < tulos.size(); ++tt)
@@ -260,15 +261,15 @@ std::vector<int> Infot::omistukset(std::vector<int> ehdokkaat, int kenen) {
 }
 std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
     int hyokkaavyys = 120;
-    int alttiush_minimi = 90;
     std::vector<int> tulos(platinatuotot.size());
     for (int tt = 0; tt < ehd.size(); ++tt) {
         if (omistajat[ehd[tt]] != myId) {
             if (omistajat[ehd[tt]] == -1) {
                 tulos[ehd[tt]] = 200 * platinatuotot[ehd[tt]] + hyokkaavyys;// * (playerCount-1);
             } else {
-                tulos[ehd[tt]] = 120 * platinatuotot[ehd[tt]] + hyokkaavyys;
+//                tulos[ehd[tt]] = 120 * platinatuotot[ehd[tt]] + hyokkaavyys;
 //                tulos[ehd[tt]] = (60 + 60 * (4 - playerCount))  * platinatuotot[ehd[tt]] + hyokkaavyys;
+                tulos[ehd[tt]] = (100 + 40 * (4 - playerCount))  * platinatuotot[ehd[tt]] + hyokkaavyys;
                 if (!uhattunako(ehd[tt])) {
                     tulos[ehd[tt]] = 2 * tulos[ehd[tt]];
                 }
@@ -280,9 +281,8 @@ std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
         if (omistajat[ehd[tt]] == myId) {
             tulos[ehd[tt]] = 20 * platinatuotot[ehd[tt]];
             if (uhattunako(ehd[tt])) {
-                tulos[ehd[tt]] = tulos[ehd[tt]] * 4 + 100;
+                tulos[ehd[tt]] = tulos[ehd[tt]] * 21 + 60; // Näillä statseille GL83/131 ja
             }
-//            tulos[ehd[tt]] = tulos[ehd[tt]] + hyokkaavyys;
             if (!altisko(ehd[tt])) {
                 tulos[ehd[tt]] = 0;
             }
@@ -408,17 +408,6 @@ int Infot::uhattunako(int id) {
         tulos += vihut[naaps[tt]];
     return(tulos);
 }
-/*bool Infot::uhattunako(int id) {
-    bool tulos;
-    tulos = false;
-    std::vector<int> naaps = naapurit(id);
-    for (int tt = 0; tt < naaps.size(); ++tt)
-        if (vihut[naaps[tt]]>omat[tt])
-            tulos = true;
-    if (vihut[id] > 0)
-        tulos = true;
-    return(tulos);
-}*/
 bool Infot::altisko(int id) {
     bool tulos = false;
     std::vector<int> naaps = naapurit(id);
@@ -478,16 +467,16 @@ Manner Infot::mika_manner(int id) {
 
 
 
-/*************** vektoripari **************/
+/************** Ostot-luokka **************/
 /******************************************/
-struct Vektoripari {
-    Vektoripari() {}
-    Vektoripari(std::vector<int> e, std::vector<int> t) : lkmt(e), indeksit(t) {}    
+struct Ostot {
+    Ostot() {}
+    Ostot(std::vector<int> e, std::vector<int> t) : lkmt(e), indeksit(t) {}    
     std::vector<int> lkmt;
     std::vector<int> indeksit;
     void lisaa_idlle(int id, int paljonko = 1);
 };
-void Vektoripari::lisaa_idlle(int id, int paljonko ) {
+void Ostot::lisaa_idlle(int id, int paljonko ) {
     if (paljonko==0)
         return;
     int tt =0;
@@ -504,6 +493,34 @@ void Vektoripari::lisaa_idlle(int id, int paljonko ) {
         indeksit.push_back(id);
     }
 }
+/************* Liikkeet-luokka ************/
+/******************************************/
+struct Liikkeet {
+    Liikkeet() {}
+    Liikkeet(std::vector<int> l, std::vector<int> k, std::vector<int> m) : lkmt(m), lahto(l), kohde(k) {}    
+    std::vector<int> lkmt;
+    std::vector<int> lahto;
+    std::vector<int> kohde;
+    void lisaa_liike(int id_mista, int id_mihin, int paljonko = 1);
+};
+void Liikkeet::lisaa_liike(int id_mista, int id_mihin, int paljonko ) {
+    if (paljonko==0)
+        return;
+    int tt =0;
+    bool kesken = true;
+    while (kesken && tt < lkmt.size()) {
+        if (lahto[tt] == id_mista && kohde[tt] == id_mihin) {
+            ++lkmt[tt];
+            kesken = false;
+        }
+        ++tt;
+    }
+    if (kesken) {
+        lkmt.push_back(paljonko);
+        lahto.push_back(id_mista);
+        kohde.push_back(id_mihin);
+    }
+}
 
 
 /***********  MEKANIIKKA-luokka ***********/
@@ -516,13 +533,15 @@ struct Mekaniikka {
     void ostot();
   private:
     Infot info;
-    std::vector<int> valmistele_liikkeet();
-    void tee_liikkeet(std::vector<int> liik);
-    Vektoripari valmistele_ostot();
-    void tee_ostot(Vektoripari ost_kohteet);
-    void ekat_ostot(Vektoripari & ost);
-    void tyhjien_taytto(Vektoripari & ost);
-    void rautaa_rajalle(Vektoripari & ost);
+//    std::vector<int> valmistele_liikkeet();
+    Liikkeet valmistele_liikkeet();
+//    void tee_liikkeet(std::vector<int> liik);
+    void tee_liikkeet(Liikkeet liik);
+    Ostot valmistele_ostot();
+    void tee_ostot(Ostot ost_kohteet);
+    void ekat_ostot(Ostot & ost);
+    void tyhjien_taytto(Ostot & ost);
+    void rautaa_rajalle(Ostot & ost);
 } ;
 
 Mekaniikka::Mekaniikka(Infot in) {
@@ -534,14 +553,14 @@ void Mekaniikka::liikkeet() {
 void Mekaniikka::ostot() {
     tee_ostot(valmistele_ostot());
 }
-std::vector<int> Mekaniikka::valmistele_liikkeet() {
+/*std::vector<int> Mekaniikka::valmistele_liikkeet() {
     std::vector<int> tulos;
     std::vector <int> alueet = info.joukkoja(0); // Omia joukkoja sisältävät ruudut
     for (int tt = 0; tt < alueet.size(); ++tt) {
         int joukkokoko = info.uhattunako(alueet[tt]);
         joukkokoko = std::max(joukkokoko, 1);
         joukkokoko = std::min(joukkokoko, 4); // Yli neljän ryppäitä kannattaa hajottaa.
-        int moneenko_suuntaan = info.montako_omaa(alueet[tt]) / joukkokoko + 1;
+        int moneenko_suuntaan = (info.montako_omaa(alueet[tt])+1) / joukkokoko;
         std::vector<int> suun = info.suunnat(alueet[tt], moneenko_suuntaan);
         moneenko_suuntaan = suun.size();
         for (int ss = 0; ss < moneenko_suuntaan-1; ++ss) 
@@ -561,8 +580,32 @@ std::vector<int> Mekaniikka::valmistele_liikkeet() {
         }
     }
     return(tulos);
+}*/
+Liikkeet Mekaniikka::valmistele_liikkeet() {
+    Liikkeet tulos;
+    std::vector <int> alueet = info.joukkoja(0); // Omia joukkoja sisältävät ruudut
+    for (int tt = 0; tt < alueet.size(); ++tt) {
+        int joukkokoko = info.uhattunako(alueet[tt]);
+        joukkokoko = std::max(joukkokoko, 1);
+        joukkokoko = std::min(joukkokoko, 4); // Yli neljän ryppäitä kannattaa hajottaa.
+        int moneenko_suuntaan = (info.montako_omaa(alueet[tt])+1) / joukkokoko;
+        std::vector<int> suun = info.suunnat(alueet[tt], moneenko_suuntaan);
+        moneenko_suuntaan = suun.size();
+        for (int ss = 0; ss < moneenko_suuntaan-1; ++ss) 
+            if (suun[ss] != alueet[tt]) {
+                tulos.lisaa_liike(alueet[tt], suun[ss], joukkokoko);
+        }
+        // Jakojäännös vielä.
+        if (moneenko_suuntaan > 0 && suun[moneenko_suuntaan-1] != alueet[tt]) {
+            int jaaneet = (joukkokoko == 1)? info.montako_omaa(alueet[tt]) - joukkokoko * (moneenko_suuntaan-1) : info.montako_omaa(alueet[tt]) % joukkokoko;
+            if (jaaneet) {
+                tulos.lisaa_liike(alueet[tt], suun[moneenko_suuntaan-1], jaaneet);
+            }
+        }
+    }
+    return(tulos);
 }
-void Mekaniikka::tee_liikkeet(std::vector<int> liik) {
+/*void Mekaniikka::tee_liikkeet(std::vector<int> liik) {
     if (liik.size() < 3) {
         std::cout << "WAIT";
     } else {
@@ -570,9 +613,18 @@ void Mekaniikka::tee_liikkeet(std::vector<int> liik) {
             std::cout << liik[tt] << " ";
     }
     std::cout << std::endl;
+}*/
+void Mekaniikka::tee_liikkeet(Liikkeet liik) {
+    if (liik.lkmt.size() < 1) {
+        std::cout << "WAIT";
+    } else {
+        for (int tt = 0; tt < liik.lkmt.size(); ++tt) 
+            std::cout << liik.lkmt[tt] << " " << liik.lahto[tt] << " " << liik.kohde[tt] << " ";
+    }
+    std::cout << std::endl;
 }
-Vektoripari Mekaniikka::valmistele_ostot() {
-    Vektoripari tulos;
+Ostot Mekaniikka::valmistele_ostot() {
+    Ostot tulos;
     info.lisaa_mannerten_painoarvot();
     if (info.eka_kierrosko()) {
         ekat_ostot(tulos);
@@ -590,7 +642,7 @@ Vektoripari Mekaniikka::valmistele_ostot() {
     }
     return(tulos);
 }
-void Mekaniikka::tyhjien_taytto(Vektoripari & ost) {
+void Mekaniikka::tyhjien_taytto(Ostot & ost) {
     std::vector<int> tyhj = info.parhaat_alueet(-1);
     if (tyhj.size() >0 && info.varaa() > 0) {
         int apu = 0;
@@ -601,7 +653,7 @@ void Mekaniikka::tyhjien_taytto(Vektoripari & ost) {
         }
     }
 }
-void Mekaniikka::rautaa_rajalle(Vektoripari & ost) {
+void Mekaniikka::rautaa_rajalle(Ostot & ost) {
     std::vector<int> raja = info.parhaat_alueet(0);
     if (raja.size()==0) return;
     int kynnys;
@@ -619,7 +671,7 @@ void Mekaniikka::rautaa_rajalle(Vektoripari & ost) {
         ++apu;
     }
 }
-void Mekaniikka::tee_ostot(Vektoripari ost) {
+void Mekaniikka::tee_ostot(Ostot ost) {
     std::vector<int> ost_maarat = ost.lkmt;
     std::vector<int> ost_kohteet = ost.indeksit;
     if (ost_kohteet.size() != ost_maarat.size()) {
@@ -635,7 +687,7 @@ void Mekaniikka::tee_ostot(Vektoripari ost) {
     }
     std::cout << std::endl;
 }
-void Mekaniikka::ekat_ostot(Vektoripari & ost) {
+void Mekaniikka::ekat_ostot(Ostot & ost) {
 //    int kuinka_monta_reserviin = (rand() % 6) * (info.pelaajia() - 2); // Satunnainen: 
     int kuinka_monta_reserviin = (rand() % 6); // Yläpainotteinen: 
     while ((rand()%12) > kuinka_monta_reserviin  &&  kuinka_monta_reserviin < 10)
@@ -644,17 +696,21 @@ void Mekaniikka::ekat_ostot(Vektoripari & ost) {
 
 //    int kuinka_monta_reserviin = ( (rand() % 2) + (rand() % 2) + (rand() % 2) + (rand() % 3)) * (info.pelaajia() - 2); // Keskelle painottunut: GL128
     std::vector<int> tyhj = info.parhaat_alueet(-1);
-    int tt = 0;
-    int r = 1 + rand() % 4;
+    int tt = rand() % 3;
+    int r = 5 + rand() % 8;
+std::cerr << "Tintataan joukkoja parhaisiin " << r << std::endl;
     while (tt < tyhj.size() && tt < r && info.varaa() > kuinka_monta_reserviin) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
-        int parhaaseen = rand() % 4; // Tämä ja -1 - 3: 122, 4: 107
-    while (rand() % 2)
-        --parhaaseen; // Eli alapainotteisesti. 
-    parhaaseen = std::min(parhaaseen, info.varaa());
-    ost.lisaa_idlle(tyhj[tt], parhaaseen );
-    info.maksa(parhaaseen, tyhj[tt]);
-        ++tt;
+        int parhaaseen = (rand() % 6) % 3;
+        parhaaseen = std::min(parhaaseen, info.varaa());
+        parhaaseen = std::max(parhaaseen, 0);
+        if (info.tuotot()[tyhj[tt]] < 4 || (parhaaseen == 2 && rand() % 2))
+            parhaaseen = 0;
+        ost.lisaa_idlle(tyhj[tt], parhaaseen );
+std::cerr << "Parhaaseen meni " << parhaaseen << std::endl;
+        info.maksa(parhaaseen, tyhj[tt]);
+        tt += 1 + rand()%3;
     }
+    tt = 0;
     while (tt < tyhj.size() && info.varaa() > kuinka_monta_reserviin) {
         ost.lisaa_idlle(tyhj[tt]);
         info.maksa(1, tyhj[tt]);
@@ -666,8 +722,8 @@ void Mekaniikka::ekat_ostot(Vektoripari & ost) {
 /************************************/
 
 int main() {
-//      srand(time(NULL));
-      srand(2018);
+      srand(time(NULL));
+//      srand(2017);
       int playerCount; // the amount of players (2 to 4)
       int myId; // my player ID (0, 1, 2 or 3)
       int zoneCount; // the amount of zones on the map
