@@ -1,7 +1,6 @@
 Kehitysajatuksia:
 - peliasennot
-- esim. ADT niitä säätelemään - tosin käsin arvioitaessa ja säädettäessä tämän hyödyllisyys on kyseenalainen
-- mantereittain, kokonaisstrategiassa ja yksittäisissä liikkeissä
+  - mantereittain, kokonaisstrategiassa ja yksittäisissä liikkeissä
 - tuottavien ruutujen omistussuhteiden (ja siten tulojen) tarkkaileminen
 - mantereiden tarkkaileminen
 - sillanpään varmistaminen voittoon tarvittavilla mantereilla
@@ -15,7 +14,7 @@ Kehitysajatuksia:
   - vallataan
 - mantereen houkuttelevuuden tulisi laskea, jos sen houkutteleville alueille on jo kohdennetu riittäväksi arvioitu määrä joukkoja
 - jonoon lisätyn liikkeen johonkin ruutuun ei tule heikentää sen houkuttelevuutta siinä tapauksessa, että läsnä on puolustavia vastustajan yksiköitä enemmän kuin ruutuun on toistaiseksi kohdennettu omia yksiköitä
-- aloituksessa otetaan huomioon 6:tta tuottavien heksojen määrä
+- aloituksessa otetaan huomioon 6:tta tuottavien heksojen määrä tai tulojen hajautuminen yleisemminkin
 - tyhjien täyttö - ja rautaa rajalle -lähestymistavat saman kattostrategian alle
 - 2 hengen peliin agressiivisempi, toisen liikkeisiin reagoiva strategia
   - jos etumatkaa, jahdataan toisen yksiköitä ja hyökätään toisen alueille agressiivisesti
@@ -36,3 +35,5 @@ Kehitysajatuksia:
 - Jos alue (kahden etäisyydellä) on tyhjä, yksikön tiputtamista pitäisi seurata alueen houkuttelevuuden tiputtaminen
   - Edellyttää ostojen tekemisen muuttamista vaiheittaiseksi, yksikkö yksiköltä, ja päivittää houkuttelevuuksia välissä
   - Yksiköiden sijainnit liikkeiden jäljiltä olisi paikallaan päivittää myös ennen ostoja
+- Kaavio ohjelman toiminnasta
+- refaktorointia (mekaniikkaluokaan sisältyvä liikkeet-olio turhan siirtelyn vähentämiseksi? Vai suoraan infot-luokkaan liikkeet?)

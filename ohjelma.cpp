@@ -130,6 +130,35 @@ bool operator < ( Manner const &o, Manner const &v) {
     return(*v.idt.begin() < *o.idt.begin()); // Ratkaisee kaikki tasurit
 }
 
+/************* Liikkeet-luokka ************/
+/******************************************/
+struct Liikkeet {
+    Liikkeet() {}
+    Liikkeet(std::vector<int> l, std::vector<int> k, std::vector<int> m) : lkmt(m), lahto(l), kohde(k) {}    
+    std::vector<int> lkmt;
+    std::vector<int> lahto;
+    std::vector<int> kohde;
+    void lisaa_liike(int id_mista, int id_mihin, int paljonko = 1);
+};
+void Liikkeet::lisaa_liike(int id_mista, int id_mihin, int paljonko ) {
+    if (paljonko==0)
+        return;
+    int tt =0;
+    bool kesken = true;
+    while (kesken && tt < lkmt.size()) {
+        if (lahto[tt] == id_mista && kohde[tt] == id_mihin) {
+            ++lkmt[tt];
+            kesken = false;
+        }
+        ++tt;
+    }
+    if (kesken) {
+        lkmt.push_back(paljonko);
+        lahto.push_back(id_mista);
+        kohde.push_back(id_mihin);
+    }
+}
+
 
 /***********  INFOT-luokka ***********/
 /*************************************/
@@ -182,7 +211,8 @@ class Infot {
     void lisaa_mannerten_painoarvot();
     Manner mika_manner(int id);
     std::vector<int> tuotot() {return(platinatuotot);}
-
+    void liikkeiden_vaikutukset(Liikkeet liikkeet);
+    void kierroksen_puolivali(Liikkeet liikkeet);
 };
 
 Infot::Infot() {}
@@ -227,6 +257,16 @@ void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vect
     houkuttelevuudet = jo;
     if (vro>2)
         playerCount = pelaajia_viela.size();
+}
+void Infot::kierroksen_puolivali(Liikkeet liikkeet) {
+    lisaa_mannerten_painoarvot();
+    liikkeiden_vaikutukset(liikkeet);
+    std::vector<int> pohjaht = laske_pohjahoukuttelevuudet(idt);
+    std::vector<int> jo(platinatuotot.size(), 0);
+    for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
+        jo = laske_verkostohoukuttelevuudet(*it, jo, pohjaht);
+    }
+    houkuttelevuudet = jo;
 }
 std::vector<int> Infot::parhaat_alueet(int kenen) {
     if (kenen == 0)
@@ -303,7 +343,7 @@ void Infot::lisaa_mannerten_painoarvot() {
 std::vector<int> Infot::laske_verkostohoukuttelevuudet(Manner manner, std::vector<int> jo, std::vector<int> pohjaht) {
     // Alueeseen yhteydessä olevien alueiden vaikutus
     if (valmis_mannerko(manner)) return(jo);
-    int osuus = 20; // Kuinka monta prosenttia naapureiden arvosta siirtyy eteenpäin.
+    int osuus = 15; // Kuinka monta prosenttia naapureiden arvosta siirtyy eteenpäin.
     std::set<int> alueet = manner.alueet();
     for (std::set<int>::iterator it = alueet.begin(); it != alueet.end(); ++it) {
         int houk = pohjaht[*it];
@@ -464,6 +504,14 @@ Manner Infot::mika_manner(int id) {
     Manner tulos;
     return(tulos);
 }
+void Infot::liikkeiden_vaikutukset(Liikkeet liik) {
+    if (liik.lkmt.size()) {
+        for (int tt = 0; tt < liik.lkmt.size(); ++tt) {
+            omat[liik.lahto[tt]] -= liik.lkmt[tt];
+            omat[liik.kohde[tt]] += liik.lkmt[tt];
+        }
+    }
+}
 
 
 
@@ -493,34 +541,6 @@ void Ostot::lisaa_idlle(int id, int paljonko ) {
         indeksit.push_back(id);
     }
 }
-/************* Liikkeet-luokka ************/
-/******************************************/
-struct Liikkeet {
-    Liikkeet() {}
-    Liikkeet(std::vector<int> l, std::vector<int> k, std::vector<int> m) : lkmt(m), lahto(l), kohde(k) {}    
-    std::vector<int> lkmt;
-    std::vector<int> lahto;
-    std::vector<int> kohde;
-    void lisaa_liike(int id_mista, int id_mihin, int paljonko = 1);
-};
-void Liikkeet::lisaa_liike(int id_mista, int id_mihin, int paljonko ) {
-    if (paljonko==0)
-        return;
-    int tt =0;
-    bool kesken = true;
-    while (kesken && tt < lkmt.size()) {
-        if (lahto[tt] == id_mista && kohde[tt] == id_mihin) {
-            ++lkmt[tt];
-            kesken = false;
-        }
-        ++tt;
-    }
-    if (kesken) {
-        lkmt.push_back(paljonko);
-        lahto.push_back(id_mista);
-        kohde.push_back(id_mihin);
-    }
-}
 
 
 /***********  MEKANIIKKA-luokka ***********/
@@ -529,14 +549,12 @@ void Liikkeet::lisaa_liike(int id_mista, int id_mihin, int paljonko ) {
 struct Mekaniikka {
     Mekaniikka(Infot in);
     // API-functiot
-    void liikkeet();
-    void ostot();
+    Liikkeet liikkeet();
+    void ostot(Liikkeet liikkeet);
   private:
     Infot info;
-//    std::vector<int> valmistele_liikkeet();
     Liikkeet valmistele_liikkeet();
-//    void tee_liikkeet(std::vector<int> liik);
-    void tee_liikkeet(Liikkeet liik);
+    Liikkeet tee_liikkeet(Liikkeet liik);
     Ostot valmistele_ostot();
     void tee_ostot(Ostot ost_kohteet);
     void ekat_ostot(Ostot & ost);
@@ -547,10 +565,11 @@ struct Mekaniikka {
 Mekaniikka::Mekaniikka(Infot in) {
     info = in;
 }
-void Mekaniikka::liikkeet() {
-    tee_liikkeet(valmistele_liikkeet());
+Liikkeet Mekaniikka::liikkeet() {
+    return(tee_liikkeet(valmistele_liikkeet()));
 }
-void Mekaniikka::ostot() {
+void Mekaniikka::ostot(Liikkeet liikkeet) {
+    info.kierroksen_puolivali(liikkeet);
     tee_ostot(valmistele_ostot());
 }
 /*std::vector<int> Mekaniikka::valmistele_liikkeet() {
@@ -614,7 +633,7 @@ Liikkeet Mekaniikka::valmistele_liikkeet() {
     }
     std::cout << std::endl;
 }*/
-void Mekaniikka::tee_liikkeet(Liikkeet liik) {
+Liikkeet Mekaniikka::tee_liikkeet(Liikkeet liik) {
     if (liik.lkmt.size() < 1) {
         std::cout << "WAIT";
     } else {
@@ -622,6 +641,7 @@ void Mekaniikka::tee_liikkeet(Liikkeet liik) {
             std::cout << liik.lkmt[tt] << " " << liik.lahto[tt] << " " << liik.kohde[tt] << " ";
     }
     std::cout << std::endl;
+    return(liik);
 }
 Ostot Mekaniikka::valmistele_ostot() {
     Ostot tulos;
@@ -780,7 +800,7 @@ int main() {
         pelaajia_mukana.erase(-1);
         infot.kierroksen_alku(omistajat, vihut, omat, platinum/20, pelaajia_mukana);
         Mekaniikka mek(infot);
-        mek.liikkeet();
-        mek.ostot();
+        Liikkeet liiks = mek.liikkeet();
+        mek.ostot(liiks);
     }
 }

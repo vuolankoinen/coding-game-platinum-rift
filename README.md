@@ -1,7 +1,7 @@
 # Codingame Platinum Rift controller
 
 This is my code to play the game on www.codingame.com/ide/puzzle/platinum-rift-episode-1.  
-At the moment it has beaten the Wood, Bronze and Silver leagues and has standing 107/300 in the Gold league.
+At the moment it has beaten the Wood, Bronze and Silver leagues and has standing 56/131 in the Gold league.
 
 The code is all contained in one file, because that's how the codingame-IDE requires the code to be written.
 
