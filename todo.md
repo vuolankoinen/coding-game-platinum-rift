@@ -19,7 +19,7 @@ Kehitysajatuksia:
 - 2 hengen peliin agressiivisempi, toisen liikkeisiin reagoiva strategia
   - jos etumatkaa, jahdataan toisen yksiköitä ja hyökätään toisen alueille agressiivisesti
 - refaktoroi: info.valmisko(manner) -> manner.valmisko(info.omist)
-- naapurit(id) -> naapurit(id, etaisyys)
+- ~~naapurit(id) -> naapurit(id, etaisyys)~~
 - const kaikkialle, missä mahdollista
 - Keille manner on vielä avoin?
 - Paljoonko alueeseen kullakin pelaajalla on vielä mahdollisuus?
@@ -32,8 +32,8 @@ Kehitysajatuksia:
 - Jumahtaneiden tilanteiden tunnistaminen ja niihin reaktiona muurinmurtajaoperaatiot
 - Erilliset houkuttelevuudet liikkeille ja ostoille.
 - Resurssikohdennusjärjestelmä, ehkä peräti oma olio kullekin yksikölle
-- Jos alue (kahden etäisyydellä) on tyhjä, yksikön tiputtamista pitäisi seurata alueen houkuttelevuuden tiputtaminen
+- ~~Jos alue (kahden etäisyydellä) on tyhjä, yksikön tiputtamista pitäisi seurata alueen houkuttelevuuden tiputtaminen~~
   - Edellyttää ostojen tekemisen muuttamista vaiheittaiseksi, yksikkö yksiköltä, ja päivittää houkuttelevuuksia välissä
   - Yksiköiden sijainnit liikkeiden jäljiltä olisi paikallaan päivittää myös ennen ostoja
 - Kaavio ohjelman toiminnasta
-- refaktorointia (mekaniikkaluokaan sisältyvä liikkeet-olio turhan siirtelyn vähentämiseksi? Vai suoraan infot-luokkaan liikkeet?)
+- ~~refaktorointia (mekaniikkaluokaan sisältyvä liikkeet-olio turhan siirtelyn vähentämiseksi? Vai suoraan infot-luokkaan liikkeet?)~~
