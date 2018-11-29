@@ -184,7 +184,8 @@ class Infot {
     std::vector<int> jrj(std::vector<int> ehdokkaat, std::vector<int> ehdokkaiden_arvot);
     std::vector<int> omistukset(std::vector<int> ehdokkaat, int kenen);
     std::vector<int> laske_pohjahoukuttelevuudet(std::vector<int> ehdokkaat);
-    std::vector<int> laske_verkostohoukuttelevuudet(Manner manner, std::vector<int> jo_olemassa, std::vector<int> pohjahoukuttelevuudet);
+    std::vector<int> laske_pv_pohjahoukuttelevuudet(std::vector<int> ehdokkaat);
+    std::vector<int> laske_verkostohoukuttelevuudet(Manner manner, std::vector<int> jo_olemassa, std::vector<int> pohjahoukuttelevuudet, int siirtyvyys);
     bool altisko(int id);
     bool valmis_mannerko(Manner manner);
     void omalta_alueelta_ohjaaminen(int id);
@@ -203,16 +204,18 @@ class Infot {
     int varaa() {return(platinum);}
     int montako_omaa(int id) {return(omat[id]);}
     std::vector<int> suunnat(int id, int moneenko_suuntaan);
-    int maksa(int paljonko, int mihin);
+    int maksa(int paljonko, int mihin=-1);
     std::vector<int> naapurit(int id);
     int houkutus(int id) {return(houkuttelevuudet[id]);}
     std::set<Manner> poista_valmiit_mantereet();
-    int uhattunako(int id);
+    int uhattunako(int id, int matka=0);
     void lisaa_mannerten_painoarvot();
     Manner mika_manner(int id);
     std::vector<int> tuotot() {return(platinatuotot);}
     void liikkeiden_vaikutukset(Liikkeet liikkeet);
     void kierroksen_puolivali(Liikkeet liikkeet);
+    int voimasuhteet(int id, int etaisyydella = 2, int huomioitavat_tulevat=0);
+    void alue_hoidossa(int id, int etaisyydella = 2);
 };
 
 Infot::Infot() {}
@@ -252,7 +255,7 @@ void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vect
     std::vector<int> jo(platinatuotot.size(), 0);
     mantereet = poista_valmiit_mantereet();
     for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
-        jo = laske_verkostohoukuttelevuudet(*it, jo, pohjaht);
+        jo = laske_verkostohoukuttelevuudet(*it, jo, pohjaht, 15);
     }
     houkuttelevuudet = jo;
     if (vro>2)
@@ -261,10 +264,10 @@ void Infot::kierroksen_alku(std::vector<int> om, std::vector<int> vih, std::vect
 void Infot::kierroksen_puolivali(Liikkeet liikkeet) {
     lisaa_mannerten_painoarvot();
     liikkeiden_vaikutukset(liikkeet);
-    std::vector<int> pohjaht = laske_pohjahoukuttelevuudet(idt);
+    std::vector<int> pohjaht = laske_pv_pohjahoukuttelevuudet(idt);
     std::vector<int> jo(platinatuotot.size(), 0);
     for (std::set<Manner>::iterator it = mantereet.begin(); it != mantereet.end(); ++it) {
-        jo = laske_verkostohoukuttelevuudet(*it, jo, pohjaht);
+        jo = laske_verkostohoukuttelevuudet(*it, jo, pohjaht, 15);
     }
     houkuttelevuudet = jo;
 }
@@ -279,7 +282,7 @@ std::vector<int> Infot::parhaat_alueet(int kenen) {
     if (kenen == -1) { // Poistetaan tyhjistä tuottamattomat
         std::vector<int> apu;
         for (int tt = 0; tt < tulos.size(); ++tt)
-            if (platinatuotot[tulos[tt]]>1)
+            if (platinatuotot[tulos[tt]]>0)
                 apu.push_back(tulos[tt]);
         tulos = apu;
     }
@@ -307,8 +310,35 @@ std::vector<int> Infot::laske_pohjahoukuttelevuudet(std::vector<int> ehd) {
             if (omistajat[ehd[tt]] == -1) {
                 tulos[ehd[tt]] = 200 * platinatuotot[ehd[tt]] + hyokkaavyys;// * (playerCount-1);
             } else {
-//                tulos[ehd[tt]] = 120 * platinatuotot[ehd[tt]] + hyokkaavyys;
-//                tulos[ehd[tt]] = (60 + 60 * (4 - playerCount))  * platinatuotot[ehd[tt]] + hyokkaavyys;
+                tulos[ehd[tt]] = (100 + 40 * (4 - playerCount))  * platinatuotot[ehd[tt]] + hyokkaavyys;
+                if (!uhattunako(ehd[tt])) {
+                    tulos[ehd[tt]] = 2 * tulos[ehd[tt]];
+                }
+                if (vihut[ehd[tt]]==0) {
+                    tulos[ehd[tt]] = 2 * tulos[ehd[tt]];
+                }
+            }
+        }
+        if (omistajat[ehd[tt]] == myId) {
+            tulos[ehd[tt]] = 20 * platinatuotot[ehd[tt]];
+            if (uhattunako(ehd[tt])) {
+                tulos[ehd[tt]] = tulos[ehd[tt]] * 21 + 60; // Näillä statseille GL83/131 ja
+            }
+            if (!altisko(ehd[tt])) {
+                tulos[ehd[tt]] = 0;
+            }
+        }
+    }
+    return(tulos);
+}
+std::vector<int> Infot::laske_pv_pohjahoukuttelevuudet(std::vector<int> ehd) {
+    int hyokkaavyys = 120;
+    std::vector<int> tulos(platinatuotot.size());
+    for (int tt = 0; tt < ehd.size(); ++tt) {
+        if (omistajat[ehd[tt]] != myId) {
+            if (omistajat[ehd[tt]] == -1) {
+                tulos[ehd[tt]] = 200 * platinatuotot[ehd[tt]] + hyokkaavyys;// * (playerCount-1);
+            } else {
                 tulos[ehd[tt]] = (100 + 40 * (4 - playerCount))  * platinatuotot[ehd[tt]] + hyokkaavyys;
                 if (!uhattunako(ehd[tt])) {
                     tulos[ehd[tt]] = 2 * tulos[ehd[tt]];
@@ -340,10 +370,10 @@ void Infot::lisaa_mannerten_painoarvot() {
         }
     }
 }
-std::vector<int> Infot::laske_verkostohoukuttelevuudet(Manner manner, std::vector<int> jo, std::vector<int> pohjaht) {
+std::vector<int> Infot::laske_verkostohoukuttelevuudet(Manner manner, std::vector<int> jo, std::vector<int> pohjaht, int osuus) {
     // Alueeseen yhteydessä olevien alueiden vaikutus
     if (valmis_mannerko(manner)) return(jo);
-    int osuus = 15; // Kuinka monta prosenttia naapureiden arvosta siirtyy eteenpäin.
+//    int osuus = 15; // Kuinka monta prosenttia naapureiden arvosta siirtyy eteenpäin.
     std::set<int> alueet = manner.alueet();
     for (std::set<int>::iterator it = alueet.begin(); it != alueet.end(); ++it) {
         int houk = pohjaht[*it];
@@ -356,7 +386,9 @@ std::vector<int> Infot::laske_verkostohoukuttelevuudet(Manner manner, std::vecto
 
 int Infot::maksa(int x, int id) {
     platinum -= x;
-    houkuttelevuudet[id] = houkuttelevuudet[id]*2/3;
+    if (id >-1) {
+        houkuttelevuudet[id] = houkuttelevuudet[id]*2/3;
+    }
     return(platinum);
 }
 std::vector<int> Infot::jrj(std::vector<int> ehdokkaat, std::vector<int> arvot) {
@@ -426,7 +458,7 @@ void Infot::omalta_alueelta_ohjaaminen(int id) {
         }
         std::set<int> seuraavat_kohteet = kohteet;
         for (std::set<int>::iterator it = kohteet.begin(); it != kohteet.end(); ++it)
-            if (mann.matka(kohde, *it) < 3)
+            if (mann.matka(kohde, *it) < 2) // oli alle 3
                 seuraavat_kohteet.erase(*it);
         kohteet = seuraavat_kohteet;
     }
@@ -441,12 +473,19 @@ std::vector<int> Infot::naapurit(int id) {
     }
     return(tulos);        
 }
-int Infot::uhattunako(int id) {
+int Infot::uhattunako(int id, int matka) {
     int tulos = vihut[id];
-    std::vector<int> naaps = naapurit(id);
-    for (int tt = 0; tt < naaps.size(); ++tt)
-        tulos += vihut[naaps[tt]];
-    return(tulos);
+    if (matka > 0) {
+        std::vector<int> naaps = naapurit(id);
+        for (int tt = 0; tt < naaps.size(); ++tt)
+            tulos += uhattunako(naaps[tt], matka-1);
+        return(tulos);
+    } else {
+        std::vector<int> naaps = naapurit(id);
+        for (int tt = 0; tt < naaps.size(); ++tt)
+            tulos += vihut[naaps[tt]];
+        return(tulos);
+    }
 }
 bool Infot::altisko(int id) {
     bool tulos = false;
@@ -512,6 +551,28 @@ void Infot::liikkeiden_vaikutukset(Liikkeet liik) {
         }
     }
 }
+int Infot::voimasuhteet(int id, int etaisyydella, int tulevia) {
+    Manner manner = mika_manner(id);
+    std::set<int> al = manner.alueet();
+    int omia = tulevia;
+    int muiden = 0;
+    for (std::set<int>::iterator it = al.begin(); it != al.end(); ++it) {
+        if (manner.matka(id, *it) <= etaisyydella) {
+            omia += omat[*it];
+            muiden += vihut[*it];
+        }
+    }
+    return(omia-muiden);
+}
+void Infot::alue_hoidossa(int id, int etaisyydella) {
+    Manner manner = mika_manner(id);
+    std::set<int> al = manner.alueet();
+    for (std::set<int>::iterator it = al.begin(); it != al.end(); ++it) {
+        if (manner.matka(id, *it) <= etaisyydella) {
+            houkuttelevuudet[*it] = houkuttelevuudet[*it] *2 / 3;
+        }
+    }
+}
 
 
 
@@ -570,36 +631,9 @@ Liikkeet Mekaniikka::liikkeet() {
 }
 void Mekaniikka::ostot(Liikkeet liikkeet) {
     info.kierroksen_puolivali(liikkeet);
+    info.lisaa_mannerten_painoarvot();
     tee_ostot(valmistele_ostot());
 }
-/*std::vector<int> Mekaniikka::valmistele_liikkeet() {
-    std::vector<int> tulos;
-    std::vector <int> alueet = info.joukkoja(0); // Omia joukkoja sisältävät ruudut
-    for (int tt = 0; tt < alueet.size(); ++tt) {
-        int joukkokoko = info.uhattunako(alueet[tt]);
-        joukkokoko = std::max(joukkokoko, 1);
-        joukkokoko = std::min(joukkokoko, 4); // Yli neljän ryppäitä kannattaa hajottaa.
-        int moneenko_suuntaan = (info.montako_omaa(alueet[tt])+1) / joukkokoko;
-        std::vector<int> suun = info.suunnat(alueet[tt], moneenko_suuntaan);
-        moneenko_suuntaan = suun.size();
-        for (int ss = 0; ss < moneenko_suuntaan-1; ++ss) 
-            if (suun[ss] != alueet[tt]) {
-                tulos.push_back(joukkokoko);
-                tulos.push_back(alueet[tt]);
-                tulos.push_back(suun[ss]);
-        }
-        // Jakojäännös vielä.
-        if (moneenko_suuntaan > 0 && suun[moneenko_suuntaan-1] != alueet[tt]) {
-            int jaaneet = (joukkokoko == 1)? info.montako_omaa(alueet[tt]) - joukkokoko * (moneenko_suuntaan-1) : info.montako_omaa(alueet[tt]) % joukkokoko;
-            if (jaaneet) {
-                tulos.push_back(jaaneet);
-                tulos.push_back(alueet[tt]);
-                tulos.push_back(suun[moneenko_suuntaan-1]);
-            }
-        }
-    }
-    return(tulos);
-}*/
 Liikkeet Mekaniikka::valmistele_liikkeet() {
     Liikkeet tulos;
     std::vector <int> alueet = info.joukkoja(0); // Omia joukkoja sisältävät ruudut
@@ -624,15 +658,6 @@ Liikkeet Mekaniikka::valmistele_liikkeet() {
     }
     return(tulos);
 }
-/*void Mekaniikka::tee_liikkeet(std::vector<int> liik) {
-    if (liik.size() < 3) {
-        std::cout << "WAIT";
-    } else {
-        for (int tt = 0; tt < liik.size(); ++tt) 
-            std::cout << liik[tt] << " ";
-    }
-    std::cout << std::endl;
-}*/
 Liikkeet Mekaniikka::tee_liikkeet(Liikkeet liik) {
     if (liik.lkmt.size() < 1) {
         std::cout << "WAIT";
@@ -645,10 +670,15 @@ Liikkeet Mekaniikka::tee_liikkeet(Liikkeet liik) {
 }
 Ostot Mekaniikka::valmistele_ostot() {
     Ostot tulos;
-    info.lisaa_mannerten_painoarvot();
     if (info.eka_kierrosko()) {
         ekat_ostot(tulos);
         return(tulos);
+//      kokeilumielessä eka kierros samalla kuin muutkin
+    int kuinka_monta_reserviin = (rand() % 6); // Yläpainotteinen:
+    while ((rand()%12) > kuinka_monta_reserviin  &&  kuinka_monta_reserviin < 10)
+        ++kuinka_monta_reserviin;
+    kuinka_monta_reserviin *= (info.pelaajia() - 2);
+    info.maksa(kuinka_monta_reserviin); // Varataan rahat reservin ostamiseen.
     }
     if (info.varaa()) {
         tyhjien_taytto(tulos);
@@ -664,14 +694,16 @@ Ostot Mekaniikka::valmistele_ostot() {
 }
 void Mekaniikka::tyhjien_taytto(Ostot & ost) {
     std::vector<int> tyhj = info.parhaat_alueet(-1);
-    if (tyhj.size() >0 && info.varaa() > 0) {
-        int apu = 0;
-        while (info.varaa() > 0 && apu < tyhj.size()) {
-            ost.lisaa_idlle(tyhj[apu]);
-            info.maksa(1, tyhj[apu]);
-            ++apu;
+    while (tyhj.size() >0 && info.varaa() > 0) {
+            tyhj = info.parhaat_alueet(-1);
+            ost.lisaa_idlle(tyhj[0]);
+            info.maksa(1, tyhj[0]);
+// Tässä houkuttelevuuksien päivittäminen (jos omia enemmän lähistollä, alueen houkuttelevuus tippuu):
+            if (info.voimasuhteet(tyhj[0], 2, 1) > 0)
+                info.alue_hoidossa(tyhj[0], 2);
+            if (info.voimasuhteet(tyhj[0], 1, 1) > 0)
+                info.alue_hoidossa(tyhj[0], 1);
         }
-    }
 }
 void Mekaniikka::rautaa_rajalle(Ostot & ost) {
     std::vector<int> raja = info.parhaat_alueet(0);
@@ -718,7 +750,6 @@ void Mekaniikka::ekat_ostot(Ostot & ost) {
     std::vector<int> tyhj = info.parhaat_alueet(-1);
     int tt = rand() % 3;
     int r = 5 + rand() % 8;
-std::cerr << "Tintataan joukkoja parhaisiin " << r << std::endl;
     while (tt < tyhj.size() && tt < r && info.varaa() > kuinka_monta_reserviin) { // Houkuttelevimpaan laitetaan 2+, sillä näin voitetaan yleisin kanssapelaajien strategia laittaa kaikkiin houkutteleviin 1...
         int parhaaseen = (rand() % 6) % 3;
         parhaaseen = std::min(parhaaseen, info.varaa());
@@ -726,7 +757,6 @@ std::cerr << "Tintataan joukkoja parhaisiin " << r << std::endl;
         if (info.tuotot()[tyhj[tt]] < 4 || (parhaaseen == 2 && rand() % 2))
             parhaaseen = 0;
         ost.lisaa_idlle(tyhj[tt], parhaaseen );
-std::cerr << "Parhaaseen meni " << parhaaseen << std::endl;
         info.maksa(parhaaseen, tyhj[tt]);
         tt += 1 + rand()%3;
     }
